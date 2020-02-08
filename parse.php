@@ -4,6 +4,11 @@
 
 $debug = true; // enables debug prints
 
+function decho($toprint){
+  global $debug;
+  if($debug) echo $toprint . "\n";
+}
+
 //table of rules
 $rules=[ //base functions
         'MOVE'        =>['params'=>['var','symb']],
@@ -56,10 +61,8 @@ $i = 0;
 while (FALSE !== ($line = fgets(STDIN))){
   array_push($input,str_replace("\n", '', trim($line)));
 }
-if($debug){
-  echo "------\033[0;34m LOADED  INPUT \033[0;37m------\n";
-  print_r($input);
-}
+decho("------\033[0;34m LOADED  INPUT \033[0;37m------");
+if($debug) print_r($input);
 //looking for the header
 if($input[0] != ".IPPcode20"){
   //missing header
@@ -72,16 +75,39 @@ for($i=1; $i < count($input); $i++){
     $input[$i] = substr($input[$i], 0, $cut);
   }
 }
-if($debug){
-  echo "-----\033[0;34m TRIMMED COMENTS \033[0;37m-----\n";
-  print_r($input);
-}
+decho("-----\033[0;34m TRIMMED COMENTS \033[0;37m-----");
+if($debug) print_r($input);
 //main checker
-if ($debug) echo "------\033[0;34m MAIN CHECKER \033[0;37m-------\n";
+decho("------\033[0;34m MAIN CHECKER \033[0;37m-------");
 for($i=1; $i < count($input); $i++){
-  if($debug){
-    printf("   \033[0;34m->\033[0;37m%s\033[0;34m<-\033[0;37m\n", $input[$i]);
+  decho($input[$i]);
+  if(preg_match("/^(\w+)/", $input[$i], $m)){
+    $opcode = $m[0];
+    decho($opcode);
+    if (isset($rules[$opcode])){
+      //opcode found in rules
+      $num = count($rules[$opcode]['params']);
+      $regexp = "/^(\w+)";
+      for($j = 0; $j < $num; $j++){
+        $regexp = $regexp . "\s+(\w+)";
+      }
+      $regexp = $regexp . "$/";
+      decho($regexp);
+
+    } else {
+      //opcode not found in rules
+    }
+  } else {
+    //no opcode on line
+    decho("/empty/");
   }
+
+
+
+
+
+
+  /*
   if(preg_match("/^(\w+)\s+(\w+)\s+(\w+)\s+(\w+)$/", $input[$i], $m)){
     $opcode = strtoupper($m[0]);
     // searching for opcode in table
@@ -151,6 +177,7 @@ for($i=1; $i < count($input); $i++){
       exit(22);
     }
   }
+*/
 
 }
 
