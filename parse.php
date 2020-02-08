@@ -2,13 +2,13 @@
 /* analyzer of IPPcode20
    author : Vojtech Coupek - xcoupe01 */
 
+//----- definig variables -----
 $debug = true; // enables debug prints
-
-function decho($toprint){
-  global $debug;
-  if($debug) echo $toprint . "\n";
-}
-
+define("ERR_OK", 0);
+define("ERR_HEADER", 21);
+define("ERR_OPCODE", 22);
+define("ERR_OTHER", 23);
+//$state = [''];
 //table of rules
 $rules=[ //base functions
         'MOVE'        =>['params'=>['var','symb']],
@@ -55,18 +55,27 @@ $rules=[ //base functions
         'BREAK'       =>['params'=>[]],
         ];
 
+//----- used functions -----
+function decho($toprint){
+  global $debug;
+  if($debug) echo $toprint;
+}
+
+
+//----- main script -----
+//add loading prog params ------------------------------------------------------
 //loading file
 $input=[];
 $i = 0;
 while (FALSE !== ($line = fgets(STDIN))){
   array_push($input,str_replace("\n", '', trim($line)));
 }
-decho("------\033[0;34m LOADED  INPUT \033[0;37m------");
+decho("------\033[0;34m LOADED  INPUT \033[0;37m------\n");
 if($debug) print_r($input);
 //looking for the header
 if($input[0] != ".IPPcode20"){
   //missing header
-  exit(21);
+  exit(ERR_HEADER);
 }
 //deleting all comments
 for($i=1; $i < count($input); $i++){
@@ -75,113 +84,53 @@ for($i=1; $i < count($input); $i++){
     $input[$i] = substr($input[$i], 0, $cut);
   }
 }
-decho("-----\033[0;34m TRIMMED COMENTS \033[0;37m-----");
+decho("-----\033[0;34m TRIMMED COMENTS \033[0;37m-----\n");
 if($debug) print_r($input);
 //main checker
-decho("------\033[0;34m MAIN CHECKER \033[0;37m-------");
+decho("------\033[0;34m MAIN CHECKER \033[0;37m-------\n");
 for($i=1; $i < count($input); $i++){
-  decho($input[$i]);
   if(preg_match("/^(\w+)/", $input[$i], $m)){
     $opcode = $m[0];
-    decho($opcode);
     if (isset($rules[$opcode])){
       //opcode found in rules
       $num = count($rules[$opcode]['params']);
       $regexp = "/^(\w+)";
       for($j = 0; $j < $num; $j++){
-        $regexp = $regexp . "\s+(\w+)";
+        $regexp = $regexp . "\s+[^-\s]+";
       }
       $regexp = $regexp . "$/";
-      decho($regexp);
-
+      if(preg_match("$regexp", $input[$i], $m)){
+        decho("\e[32mOK \e[0m \t" . $i . "\t" . $opcode . "\t" . $regexp . "\n");
+      } else {
+        //bad num of args
+        decho("\e[31mFAIL\e[0m\t" . $i . "\t" . $opcode . "\t" . $regexp . "\n");
+        exit(ERR_OTHER);
+      }
+      switch($opcode){
+        case "MOVE":
+          break;
+        case "CREATEFRAME":
+          break;
+        case "PUSHFRAME":
+          break;
+        case "POPFRAME":
+          break;
+        case "DEFVAR":
+          break;
+        case "CALL":
+          break;
+        case "RETURN":
+          break;
+      }
     } else {
       //opcode not found in rules
+      exit(ERR_OPCODE);
     }
   } else {
     //no opcode on line
-    decho("/empty/");
   }
-
-
-
-
-
-
-  /*
-  if(preg_match("/^(\w+)\s+(\w+)\s+(\w+)\s+(\w+)$/", $input[$i], $m)){
-    $opcode = strtoupper($m[0]);
-    // searching for opcode in table
-    if(isset($rules[$opcode])){
-      //checking for params
-      if(count($rules[$opcode]['params']) != 3){
-        //bad number of params
-        exit(23);
-      }
-      //next checking - specific opcode rules
-    } else {
-      //bad opcode
-      exit(22);
-    }
-  } elseif(preg_match("/^(\w+)\s+(\w+)\s+(\w+)$/", $input[$i], $m)){
-    $opcode = strtoupper($m[0]);
-    // searching for opcode in table
-    if(isset($rules[$opcode])){
-      //checking for params
-      if(count($rules[$opcode]['params']) != 2){
-        //bad number of params
-        exit(23);
-      }
-      //next checking - specific opcode rules
-    } else {
-      //bad opcode
-      exit(22);
-    }
-  } elseif(preg_match("/^(\w+)\s+(\w+)$/", $input[$i], $m)){
-    $opcode = strtoupper($m[0]);
-    // searching for opcode in table
-    if(isset($rules[$opcode])){
-      //checking for params
-      if(count($rules[$opcode]['params']) != 1){
-        //bad number of params
-        exit(23);
-      }
-      //next checking - specific opcode rules
-    } else {
-      //bad opcode
-      exit(22);
-    }
-  } elseif(preg_match("/^(\w+)$/", $input[$i], $m)){
-    $opcode = strtoupper($m[0]);
-    // searching for opcode in table
-    if(isset($rules[$opcode])){
-      //checking for params
-      if(count($rules[$opcode]['params']) != 0){
-        //bad number of params
-        exit(23);
-      }
-    } else {
-      //bad opcode
-      exit(22);
-    }
-  } elseif($input[$i] == ''){
-    //empty line - correct
-  } else {
-    //too many words on line
-    preg_match("/^(\w+)/", $input[$i], $m);
-    $opcode = $m[0];
-    if(isset($rules[$opcode])){
-      //there is the opcode
-      exit(23);
-    } else {
-      //bad opcode
-      exit(22);
-    }
-  }
-*/
-
 }
-
-exit(0);
+exit(ERR_OK);
 
 /*
 $shortopts = "";
