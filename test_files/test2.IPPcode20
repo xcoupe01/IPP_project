@@ -1,0 +1,8 @@
+.IPPcode20
+DEFVAR GF@var1
+DEFVAR GF@var2
+DEFVAR GF@var3
+MOVE GF@var1 int@25
+MOVE GF@var2 int@15
+ADD GF@var3 GF@var1 GF@var2
+ADD GF@var3 GF@var3 int@15
