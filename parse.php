@@ -127,7 +127,7 @@ function varCreate($str){
         return true;
       } elseif($prefix == "TF"){
         if($state[$prefix . 'Def']){
-          $state[$prefix][$name] = '#';
+          $state[$prefix][$name] = 'undef';
           decho(" varCreate     \e[32mGOOD\e[0m variable [$name] defined\n");
           return true;
         }
@@ -163,7 +163,7 @@ function varSet($var, $set){
     } else {
       $state[$prefix][$value] = $set;
     }
-    decho(" varSet        \e[32mGOOD\e[0m variable [$value] set to value [$set]\n");
+    decho(" varSet        \e[32mGOOD\e[0m variable [$value] set to type [$set]\n");
     return true;
   }
   decho(" varSet        \e[31mFAIL\e[0m variable [$var] not defined\n");
@@ -228,12 +228,12 @@ function symbCheck($str){
           // check only escape sequences ?? --------------------------------------------- TODO
           for($i = 0; $i < strlen($value); $i++){
             if($value[$i] == "\\"){
-              //checking escape sequence
-              if(!(($value[$i + 1] <= 57 && $value[$i + 1] >= 48)
-                && ($value[$i + 2] <= 57 && $value[$i + 2] >= 48)
-                && ($value[$i + 3] <= 57 && $value[$i + 3] >= 48))){
+              //checking escape sequence - ascii now i guess
+              if(!(($value[$i + 1] <= '9' && $value[$i + 1] >= '0')
+                && ($value[$i + 2] <= '9' && $value[$i + 2] >= '0')
+                && ($value[$i + 3] <= '9' && $value[$i + 3] >= '0'))){
                   //failed escape sequence
-                  decho(" symbCheck     \e[31mFAIL\e[0m [$str]\n");
+                  decho(" symbCheck     \e[31mFAIL\e[0m [$str] bad escape sequence\n");
                   return false;
                 }
                 $i += 3;
@@ -256,7 +256,7 @@ function symbCheck($str){
 }
 
 /**
-* Get the value of symbol (variable or constant), also before getting it checks
+* Get the value (type) of symbol (variable or constant), also before getting it checks
 * if its correct
 * @param str is symbol to be given
 * @return value if the symbol is correct, false otherwise
@@ -269,12 +269,12 @@ function symbGet($str){
     $value = substr($str, $cut + 1);
     if($prefix == "GF" || $prefix == "LF" || $prefix == "TF"){
       //symb is variable
-      decho(" symbGet       \e[32mGOOD\e[0m variable [$value] of value " . $state[$prefix][$value] . "\n");
+      decho(" symbGet       \e[32mGOOD\e[0m variable [$value] of type " . $state[$prefix][$value] . "\n");
       return $state[$prefix][$value];
     } elseif($prefix == "int" || $prefix == "bool" || $prefix == "string" || $prefix == "nil"){
       //symb is constant
-      decho(" symbGet       \e[32mGOOD\e[0m symbol [$str] of value [$value]\n");
-      return $value;
+      decho(" symbGet       \e[32mGOOD\e[0m symbol [$str] of type [$prefix]\n");
+      return $prefix;
     }
   }
   decho(" symbGet       \e[31mFAIL\e[0m [$str]\n");
@@ -310,24 +310,6 @@ function labelCreate($str){
   }
   decho(" labelCreate   \e[31mFAIL\e[0m label [$str] redefinition\n");
   return false;
-}
-
-/**
-* Says type of given input
-* @param str is value to be tested
-* @returns "int" if the value is integer, "bool" if the value is bool
-* "nil" if nil and string otherwise
-*/
-function findType($str){
-  if(preg_match("/^\d+$/", $str) || preg_match("/^-\d+$/", $str)){
-    return "int";
-  } elseif($str == "true" || $str == "false"){
-    return "bool";
-  } elseif($str == "nil"){
-    return "nil";
-  } else {
-    return "string";
-  }
 }
 
 //----- main script -----
@@ -388,6 +370,9 @@ for($i=1; $i < count($input); $i++){
             decho(" opcode MOVE   \e[31mFAIL\e[0m bad <symb>\n");
             exit(ERR_OTHER);
           }
+          if($val == "undef"){
+            decho(" opcode MOVE   \e[33mWARN\e[0m undefined variable\n");
+          }
           if(!varSet($var, $val)){
             //variable doesnt exist
             decho(" opcode MOVE   \e[31mFAILED\e[0m undefined <var>\n");
@@ -439,7 +424,7 @@ for($i=1; $i < count($input); $i++){
           decho(" opcode DEFVAR \e[32mGOOD\e[0m\n");
           break;
         case "CALL":
-          // CALL <label>
+          // CALL <label> --------------------------------------------------------------- TODO -- save PC ?
           // jumps to label and saves incremented PC
           $label = m[2];
           if(!labelCheck($label)){
@@ -450,12 +435,36 @@ for($i=1; $i < count($input); $i++){
           decho(" opcode CALL   \e[32mGOOD\e[0m\n");
           break;
         case "RETURN":
-          // RETURN
+          // RETURN --------------------------------------------------------------------- TODO -- something else ?
           // returns to saved PC by call
           break;
         case "PUSHS":
+          // PUSH <symb>
+          // pushes symbol to stack
+          $symb = $m[2];
+          if(($val = symbGet($symb)) === false){
+            //bad symbol
+            decho(" opcode PUSHS  \e[31mFAIL\e[0m bad <symb>\n");
+            exit(ERR_OTHER);
+          }
+          if($val == "undef"){
+            decho(" opcode PUSHS  \e[33mWARN\e[0m undefined variable\n");
+          }
+          array_push($state['stack'], $val);
+          decho(" opcode PUSHS  \e[32mGOOD\e[0m\n");
           break;
         case "POPS":
+          // POPS <var>
+          // pops top of the stack to var
+          $var = $m[2];
+          if(!varSet($var, array_pop($state['stack']))){
+            decho(" opcode POPS   \e[31mFAIL\e[0m udnefined <var>\n");
+            exit(ERR_OTHER);
+          }
+          if(varGet($var) === "undef"){
+            decho(" opcode POPS   \e[33mWARN\e[0m undefined variable\n");
+          }
+          decho(" opcode POPS   \e[32mGOOD\e[0m\n");
           break;
         case "ADD":
           // ADD <var> <symb1> <symb2>
@@ -482,44 +491,23 @@ for($i=1; $i < count($input); $i++){
             decho(" opcode $m[1]    \e[31mFAIL\e[0m bad <symb2>\n");
             exit(ERR_OTHER);
           }
-          if((preg_match("/^\d+$/", $val1) || preg_match("/^-\d+$/", $val1)) === false){
-            //bad type of val1
-            decho(" opcode $m[1]    \e[31mFAIL\e[0m <symb1> not integer\n");
-            exit(ERR_OTHER);
+          if($val1 == "undef"){
+            decho(" opcode $m[1]    \e[33mWARN\e[0m redefinig undefined variable from <symb1> to int\n");
+            varSet($symb1, "int");
+            $val1 = "int";
           }
-          if((preg_match("/^\d+$/", $val2) || preg_match("/^-\d+$/", $val2)) === false){
-            //bad type of val2
-            decho(" opcode $m[1]    \e[31mFAIL\e[0m <symb2> not integer\n");
-            exit(ERR_OTHER);
+          if($val2 == "undef"){
+            decho(" opcode $m[1]    \e[33mWARN\e[0m redefinig undefined variable from <symb1> to int\n");
+            varSet($symb2, "int");
+            $val2 = "int";
           }
-          if ($m[1] = "ADD"){
-            if(!varSet($var, $val1 + $val2)){
-              //bad var
-              decho(" opcode ADD    \e[31mFAIL\e[0m undefined <var>\n");
-              exit(ERR_OTHER);
-            }
-          } elseif($m[1] == "SUB"){
-            if(!varSet($var, $val1 - $val2)){
-              //bad var
-              decho(" opcode SUB    \e[31mFAIL\e[0m undefined <var>\n");
-              exit(ERR_OTHER);
-            }
-          } elseif($m[1] == "MUL"){
-            if(!varSet($var, $val1 * $val2)){
-              //bad var
-              decho(" opcode MUL    \e[31mFAIL\e[0m undefined <var>\n");
-              exit(ERR_OTHER);
-            }
-          } else {
-            // IDIV
-            if(preg_match("/^0+$/", $val2)){
-              decho(" opcode IDIV   \e[31mFAIL\e[0m dividing by zero\n");
-            }
-            if(!varSet($var, $val1 / $val2)){
-              //bad var
-              decho(" opcode IDIV   \e[31mFAIL\e[0m undefined <var>\n");
-              exit(ERR_OTHER);
-            }
+          if($val1 != "int" && $val2 != "int" ){
+            decho(" opcode $m[1]   \e[31mFAIL\e[0m <symb1> or/and <symb2> not integer\n");
+          }
+          if(!varSet($var, $val1)){
+            //bad var
+            decho(" opcode ADD    \e[31mFAIL\e[0m undefined <var>\n");
+            exit(ERR_OTHER);
           }
           decho(" opcode $m[1]    \e[32mGOOD\e[0m\n");
           break;
@@ -543,148 +531,177 @@ for($i=1; $i < count($input); $i++){
             decho(" opcode $m[1]       \e[31mFAIL\e[0m bad <symb2>\n");
             exit(ERR_OTHER);
           }
-          $type1 = findType($val1);
-          $type2 = findType($val2);
-          if($type1 == "nil" || $type2 == "nil" ){
-              if($m[1] == "EQ"){
-                if($type1 == $type2){
-                  if(!varSet($var, true)){
-                    decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  }
-                } else {
-                  if(!varSet($var, false)){
-                    decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  }
-                }
-                decho(" opcode $m[1]       \e[32mGOOD\e[0m\n");
-                break;
-              } else {
-                decho(" opcode $m[1]       \e[31mFAIL\e[0m cant compare nil\n");
+          if($val1 == "nil" || $val2 == "nil"){
+            if($m[1] == "EQ"){
+              if(!varSet($var, "bool")){
+                decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
                 exit(ERR_OTHER);
               }
+              decho(" opcode $m[1]       \e[32mGOOD\e[0m\n");
+              break;
+            } else {
+              decho(" opcode $m[1]       \e[31mFAIL\e[0m <symb1> or/and <symb2> bad types\n");
+              exit(ERR_OTHER);
+            }
           }
-          if($type1 != $type2){
-            decho(" opcode $m[1]       \e[31mFAIL\e[0m <symb1> and <symb2> not the same type\n");
+          if($val1 != $val2){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m <symb1> or/and <symb2> bad types\n");
             exit(ERR_OTHER);
           }
-          if($type1 == "int"){
-            if($m[1] == "EQ"){
-              if($val1 == $val2){
-                if(!setVar($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!setVar($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } elseif($m[1] == "LT"){
-              if($val1 < $val2){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } else { //"GT"
-              if($val1 > $val2){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            }
-          } elseif($type1 == "bool"){
-            if($m[1] == "EQ"){
-              if($val1 == $val2){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } elseif($m[1] == "LT"){
-              if($val1 == "false" && $val2 == "true"){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } else { //"GT"
-              if($val1 == "true" && $val2 == "false"){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            }
-          } elseif($type1 == "string"){
-            if($m[1] == "EQ"){
-              if(strcmp($val1, $val2) === 0){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } elseif($m[1] == "LT"){
-              if(strcmp($val1, $val2) < 0){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            } else { //"GT"
-              if(strcmp($val1, $val2) > 0){
-                if(!varSet($var, true)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              } else {
-                if(!varSet($var, false)){
-                  decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
-                  exit(ERR_OTHER);
-                }
-              }
-            }
+          if(!varSet($var, "bool")){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
+            echo(ERR_OTHER);
           }
           decho(" opcode $m[1]       \e[32mGOOD\e[0m\n");
           break;
-        case "":
+        case "AND":
+          // AND <var> <symb1> <symb2>
+          // logical and between symbol1 and symbol2 stored to variable
+        case "OR":
+          // OR <var> <symb1> <symb2>
+          // logical or between symbol1 and symbol2 stored to variable
+          $var = $m[2];
+          $symb1 = $m[3];
+          $symb2 = $m[4];
+          if(!($val1 = symbGet($symb1))){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m bad <symb1>\n");
+            exit(ERR_OTHER);
+          }
+          if(($val2 = symbGet($symb2))){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m bad <symb2>\n");
+            exit(ERR_OTHER);
+          }
+          if($val1 == "undef"){
+            decho(" opcode $m[1]    \e[33mWARN\e[0m redefinig undefined variable from <symb1> to bool\n");
+            varSet($symb1, "bool");
+            $val1 = "bool";
+          }
+          if($val2 == "undef"){
+            decho(" opcode $m[1]    \e[33mWARN\e[0m redefinig undefined variable from <symb2> to bool\n");
+            varSet($symb2, "bool");
+            $val2 = "bool";
+          }
+          if($val1 != "bool" || $val2 != "bool"){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m bad <symb1> and/or <symb2> types\n");
+            exit(ERR_OTHER);
+          }
+          if(!varSet($var, "bool")){
+            decho(" opcode $m[1]       \e[31mFAIL\e[0m undefined <var>\n");
+            exit(ERR_OTHER);
+          }
+          decho(" opcode $m[1]       \e[32mGOOD\e[0m\n");
+          break;
+        case "NOT":
+          // NOT <var> <symb>
+          // logical and between symbol1 and symbol2 stored to variable
+          $var = $m[2];
+          $symb = $m[3];
+          if(!($val = symbGet($symb))){
+            decho(" opcode NOT    \e[31mFAIL\e[0m bad <symb>\n");
+            exit(ERR_OTHER);
+          }
+          if($val == "undef"){
+            decho(" opcode NOT    \e[33mWARN\e[0m redefinig undefined variable from <symb> to bool\n");
+            varSet($symb, "bool");
+            $val = "bool";
+          }
+          if($val != "bool"){
+            decho(" opcode NOT    \e[31mFAIL\e[0m bad <symb> type\n");
+            exit(ERR_OTHER);
+          }
+          if(!varSet($var, "bool")){
+            decho(" opcode NOT    \e[31mFAIL\e[0m undefined <var>\n");
+            exit(ERR_OTHER);
+          }
+          decho(" opcode NOT    \e[32mGOOD\e[0m\n");
+        case "INT2CHAR":
+          // INT2CHAR <var> <symb>
+          // numerical value in symb is converted to char and saved to variable
+          $var = $m[2];
+          $smyb = $m[3];
+          if(!($val = symbGet($symb))){
+            decho(" opcode I2CHAR \e[31mFAIL\e[0m bad <symb>\n");
+            exit(ERR_OTHER);
+          }
+          if($val == "undef"){
+            decho(" opcode I2CHAR \e[33mWARN\e[0m redefinig undefined variable from <symb> to int\n");
+            varSet($symb, "int");
+            $val = "int";
+          }
+          if($val != "int"){
+            decho(" opcode I2CHAR \e[31mFAIL\e[0m bad <symb> type\n");
+            exit(ERR_OTHER);
+          }
+          if(!varSet($var, "bool")){
+            decho(" opcode I2CHAR \e[31mFAIL\e[0m undefined <var>\n");
+            exit(ERR_OTHER);
+          }
+          decho(" opcode I2CHAR \e[32mGOOD\e[0m\n");
+          break;
+        case "STRI2INT":
+          // STRI2INT <var> <symb1> <symb2>
+          // saves int of char in string of symbol1 at position symbol2 to variable
+          $var = $m[2];
+          $smyb1 = $m[3];
+          $symb2 = $m[4];
+          if(!($val1 = symbGet($symb1))){
+            decho(" opcode S2INT  \e[31mFAIL\e[0m bad <symb1>\n");
+            exit(ERR_OTHER);
+          }
+          if(!($val2 = symbGet($symb2))){
+            decho(" opcode S2INT  \e[31mFAIL\e[0m bad <symb2>\n");
+            exit(ERR_OTHER);
+          }
+          if($val1 == "undef"){
+            decho(" opcode S2INT  \e[33mWARN\e[0m redefinig undefined variable from <symb1> to string\n");
+            varSet($symb1, "string");
+            $val1 = "string";
+          }
+          if($val2 == "undef"){
+            decho(" opcode S2INT  \e[33mWARN\e[0m redefinig undefined variable from <symb2> to int\n");
+            varSet($symb2, "int");
+            $val2 = "int";
+          }
+          if($val1 != "string" || $val2 != "int"){
+            decho(" opcode S2INT  \e[31mFAIL\e[0m bad <symb1> and/or <symb2> types\n");
+            exit(ERR_OTHER);
+          }
+          if(!varSet($var, "int")){
+            decho(" opcode S2INT  \e[31mFAIL\e[0m undefined <var>\n");
+            exit(ERR_OTHER);
+          }
+          decho(" opcode S2INT  \e[32mGOOD\e[0m\n");
+          break;
+        case "READ":
+          // READ <var> <type> ---------------------------------------------------------- TODO
+          // saves red data from input to variable
+          break;
+        case "WRITE":
+          // WRITE <symb>
+          // writes symbol to output
+          $symb =$m[2];
+          if(!($val = symbGet($symb))){
+            decho(" opcode WRITE  \e[31mFAIL\e[0m bad <symb1>\n");
+            exit(ERR_OTHER);
+          }
+          decho(" opcode WRITE  \e[32mGOOD\e[0m\n");
+          break;
+        case "CONCAT":
+        case "STRLEN":
+        case "GETCHAR":
+        case "SETCHAR":
+        case "TYPE":
+        case "LABEL":
+        case "JUMP":
+        case "JUMPIFEQ":
+        case "JUMPIFNQE":
+        case "EXIT":
+        case "DPRINT":
+        case "BREAK":
+          break;
+        default :
+          decho("\e[31mHARD INTERNAL FAIL\e[0m\n");
+          exit(99);
       }
     } else {
       //opcode not found in rules
