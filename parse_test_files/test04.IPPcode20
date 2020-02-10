@@ -1,0 +1,33 @@
+.IPPcode20
+#opcode <var> test
+CALL label
+PUSHS int@15
+PUSHS nil@nil
+PUSHS string@ll
+PUSHS bool@true
+ADD GF@var LF@var TF@var
+SUB LF@var int@115 TF@var
+MUL TF@var GF@var int@-25
+IDIV LF@var int@22 int@-22
+LT LF@var int@22 int@-22
+GT LF@var GF@var int@-22
+EQ LF@var int@22 LF@var
+AND LF@var int@22 string@ll
+OR LF@var nil@nil int@-22
+NOT LF@var int@22 int@-22
+INT2CHAR GF@var string@hello
+STRI2INT LF@var string@hello int@15
+READ TF@var string
+WRITE string@hello
+CONCAT GF@var LF@var string@hello
+STRLEN LF@var string@hello
+GETCHAR TF@var string@hello int@15
+SETCHAR TF@var int@5 GF@var
+TYPE GF@var GF@var
+LABEL label 
+JUMP label 
+JUMPIFEQ label int@15 int@-22
+JUMPIFNEQ label GF@val string@hello
+EXIT string@hello 
+DPRINT GF@print
+BREAK

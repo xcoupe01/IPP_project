@@ -1,0 +1,9 @@
+.IPPcode20
+#MOVE test
+MOVE GF@var GF@var
+MOVE LF@var LF@var
+MOVE TF@var TF@var
+MOV GF@var int@15
+MOVE GF@var string@hello\022
+MOVE GF@var bool@true
+MOVE GF@var nil@nil

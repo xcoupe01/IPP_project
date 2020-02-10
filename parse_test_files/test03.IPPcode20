@@ -1,0 +1,8 @@
+.IPPcode20
+#opcode <var> test
+DEFVAR GF@var
+DEFVAR LF@var
+DEFVAR TF@var
+POPS GF@var
+POPS LF@var
+POPS TF@var

@@ -1,0 +1,8 @@
+.IPPcode20
+#just opocode test
+CREATEFRAME
+PUSHFRAME
+POPFRAME
+RETURN
+BREAK
+
