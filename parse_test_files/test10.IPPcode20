@@ -7,7 +7,7 @@ LABEL while
 JUMPIFEQ end GF@counter string@aaa
 WRITE string@counter\032obsahuje\032
 WRITE GF@counter
-write string@\010
+write string@&&&&
 CONCAT GF@counter GF@counter string@a
 JUMP while
 LABEL end

@@ -3,7 +3,7 @@
    author : Vojtech Coupek - xcoupe01 */
 
 //----- definig variables -----
-$debug = false; // enables debug prints
+$debug = true; // enables debug prints
 define("ERR_OK", 0);        //< correct exit code
 define("ERR_HEADER", 21);   //< header fail
 define("ERR_OPCODE", 22);   //< operation code fail
@@ -61,6 +61,7 @@ $state = ['numLoc'       => 0,                         //< num of lines with opc
           'order'        =>[]];                        //< order in stat file
 
 $output = new DOMDocument("1.0", "UTF-8"); //< output XML file that will be outputed if the whole input is correct
+$output->formatOutput = true;
 $outProgram = $output->createElement("program");
 $outProgram->setAttribute("language","IPPcode20");
 //----- used functions -----
@@ -83,7 +84,8 @@ function varCheck($str){
   if(strpos($str, "@") !== false){
     $prefix = substr($str, 0, 2);
     $name = substr($str, 3);
-    if(($prefix == "GF" || $prefix == "LF" || $prefix == "TF") && strlen($name) > 0){
+    if( ($prefix == "GF" || $prefix == "LF" || $prefix == "TF")
+          && preg_match("/^([\w_\-$&%*!?]+)$/", $name)){
       decho(" varCheck      \e[32mIS VAR\e[0m [$str]\n");
       return true;
     }
@@ -127,9 +129,9 @@ function symbCheck($str){
           for($i = 0; $i < strlen($name); $i++){
             if($name[$i] == "\\"){
               //checking escape sequence - ascii now i guess
-              if(!(($name[$i + 1] <= '9' && $name[$i + 1] >= '0')
-                && ($name[$i + 2] <= '9' && $name[$i + 2] >= '0')
-                && ($name[$i + 3] <= '9' && $name[$i + 3] >= '0'))){
+              if(!((isset($name[$i + 1]) && $name[$i + 1] <= '9' && $name[$i + 1] >= '0')
+                && (isset($name[$i + 2]) && $name[$i + 2] <= '9' && $name[$i + 2] >= '0')
+                && (isset($name[$i + 3]) && $name[$i + 3] <= '9' && $name[$i + 3] >= '0'))){
                   //failed escape sequence
                   decho(" symbCheck     \e[31mFAIL\e[0m [$str] bad escape sequence\n");
                   return false;
@@ -166,7 +168,7 @@ function symbCheck($str){
 * @return true if str is label, false otherwise
 */
 function labelCheck($str){
-  if(preg_match("/^([^-\s]+)$/", $str)){
+  if(preg_match("/^([\w_\-$&%*!?]+)$/", $str)){
     decho(" labelCheck    \e[32mGOOD\e[0m [$str]\n");
     $name = $str; $type = "label";
     return true;
@@ -206,6 +208,7 @@ while (FALSE !== ($line = fgets(STDIN))){
   array_push($input,str_replace("\n", '', trim($line)));
 }
 decho("------\033[0;34m LOADED  INPUT \033[0;37m------\n");
+if(debug) print_r($input);
 //deleting all comments
 for($i=0; $i < count($input); $i++){
   if(($cut = strpos($input[$i], "#")) !== false){
@@ -261,7 +264,7 @@ for($i=1; $i < count($input); $i++){
         $type = "";
         if($value == "var"){
           if(!varCheck($m[$j])){
-            decho(" opcode $opcode \e[31mFAIL\e[0m by varCheck at [$m[$j]]");
+            decho(" opcode $opcode \e[31mFAIL\e[0m by varCheck at [$m[$j]]\n");
             exit(ERR_OTHER);
           }
           $type = "var";
@@ -275,7 +278,11 @@ for($i=1; $i < count($input); $i++){
             $name = $m[$j];
           } else {
             $cut = strpos($m[$j], "@");
-            $name = substr($m[$j], $cut + 1);
+            if($type == "string"){
+              $name = htmlspecialchars(substr($m[$j], $cut + 1));
+            } else {
+              $name = substr($m[$j], $cut + 1);
+            }
           }
         } elseif($value == "label"){
           if( !labelCheck($m[$j])){
