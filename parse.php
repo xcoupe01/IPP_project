@@ -3,7 +3,7 @@
    author : Vojtech Coupek - xcoupe01 */
 
 //----- definig variables -----
-$debug = true; // enables debug prints
+$debug = false; // enables debug prints
 define("ERR_OK", 0);        //< correct exit code
 define("ERR_HEADER", 21);   //< header fail
 define("ERR_OPCODE", 22);   //< operation code fail
@@ -181,17 +181,17 @@ function labelCheck($str){
 // dealing with parameters - help part
 if(count($argv) > 2){
   foreach($argv as $value){
-    if($value == "--help"){
+    if($value == "--help" || $value == "-h"){
       decho("\e[31mWRONG PARAMETERS\e[0m use just \"--help\" \n");
       exit(10);
     }
   }
 } elseif(count($argv) == 2) {
-  if($argv[1] == "--help"){
-    echo "\n Filter type script. Expects intput of type IPPcode20 on standard input,checks if its syntax is correct and produce
+  if($argv[1] == "--help" || $argv[1] == "-h"){
+    echo "\n   Expects intput of type IPPcode20 on standard input,checks if its syntax is correct and produce
    XML representation of inputed program. Also it can make stat file.
    Options :
-   \"--help\"           to print help info
+   \"--help\" or \"-h\"   to print help info
    \"--source=[file]\"  to set on the output stat file and give location
    \"--loc\"            to mention number of lines in stat file
    \"--comments\"       to mention number of comments in stat file
@@ -208,7 +208,7 @@ while (FALSE !== ($line = fgets(STDIN))){
   array_push($input,str_replace("\n", '', trim($line)));
 }
 decho("------\033[0;34m LOADED  INPUT \033[0;37m------\n");
-if(debug) print_r($input);
+if($debug) print_r($input);
 //deleting all comments
 for($i=0; $i < count($input); $i++){
   if(($cut = strpos($input[$i], "#")) !== false){
@@ -224,6 +224,7 @@ do{
   if($input[$i] == ""){
     $i ++;
   } elseif($input[$i] == ".IPPcode20"){
+    $i ++;
     $go = false;
   } else {
     //missing header
@@ -235,7 +236,7 @@ decho("-----\033[0;34m TRIMMED COMENTS \033[0;37m-----\n");
 if($debug) print_r($input);
 //main checker
 decho("------\033[0;34m MAIN CHECKER \033[0;37m-------\n");
-for($i=1; $i < count($input); $i++){
+for($i; $i < count($input); $i++){
   decho("\e[1mCHECKING LINE [$i] \e[0m-> $input[$i]\n");
   if(preg_match("/^(\w+)/", $input[$i], $m)){
     $opcode = strtoupper($m[0]);
