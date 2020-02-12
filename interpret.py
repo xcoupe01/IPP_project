@@ -44,6 +44,11 @@ class Frame:
         self.types = []
         self.values = []
 
+    # Says if the frame is defined
+    # @return true if defined, false otherwise
+    def isDefined(self):
+        return self.defined
+
     # Tries to create variable of given name
     # @err when frame is not defined or when variable is being redefined
     # @param var_name is name of variable to be created
@@ -142,7 +147,7 @@ class Frame:
         d_print("FRAME printAllFrame end")
 
 
-class DataStorage:
+class VariableStorage:
     GlobalFrame = Frame(True)
     TemporaryFrame = Frame(False)
     LocalFrame = []
@@ -154,14 +159,25 @@ class DataStorage:
         self.LocalFrame = []
         self.numLF = 0
 
+    # creates new temporary frame. If there was already one, its overwrote
     def createTempFrame(self):
         self.TemporaryFrame = Frame(True)
 
+    # pushes temporary frame to stack of local frames and sets it
+    # to currently used local frame
+    # @err when the temporary frame is not defined
     def pushLocFrame(self):
-        self.LocalFrame.append(self.TemporaryFrame)
-        self.numLF += 1
-        self.TemporaryFrame = Frame(False)
+        if self.TemporaryFrame.defined():
+            self.LocalFrame.append(self.TemporaryFrame)
+            self.numLF += 1
+            self.TemporaryFrame = Frame(False)
+        else:
+            d_print("DATAS pushLocFrame - error temporary frame not defined")
+            exit(ERR_NOTDEF_FR)
 
+    # pops local frame from the local frames stack to temporary frame
+    # this overwrites the temporary frame
+    # @err when there is no local frame in stack
     def popLocFrame(self):
         if self.numLF >= 0:
             self.TemporaryFrame = self.LocalFrame.pop(self.numLF)
@@ -170,12 +186,212 @@ class DataStorage:
             d_print("DATAS popLocFrame - error no local frame to be popped")
             exit(ERR_NOTDEF_FR)
 
-    
+    # creates var in variable storage based on the variable string from IPPcode20
+    # @err when the variable string is bad or when trying to redefine existing variable
+    # @param var_str is the variable defining string from IPPcode20
+    def createVar(self, var_str):
+        checkNameVar(var_str)
+        var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if var[1] == "GF":
+            self.GlobalFrame.createVar(var[2])
+        elif var[1] == "TF":
+            self.LocalFrame[self.numLF].createVar(var[2])
+        elif var[1] == "LF":
+            self.TemporaryFrame.createVar(var[2])
+
+    # sets value and type to already created variable in variable storage
+    # @err when variable string is bad or the variable is not defined
+    # @param var_str is the variable defining string from IPPcode20
+    # @param var_type is the type the variable will be set to
+    # @param var_type is the value the variable will be set to
+    def setVar(self, var_str, var_type, var_value):
+        checkNameVar(var_str)
+        var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if var[1] == "GF":
+            self.GlobalFrame.setVar(var[2], var_type, var_value)
+        elif var[1] == "TF":
+            self.LocalFrame[self.numLF].setVar(var[2], var_type, var_value)
+        elif var[1] == "LF":
+            self.TemporaryFrame.setVar(var[2], var_type, var_value)
+
+    # returns type of given variable in IPPcode20 notation
+    # @err when variable string is bad or the variable is not defined
+    # @param var_str is the variable defining string from IPPcode20
+    # @return type of given variable if successful
+    def getVarType(self, var_str):
+        checkNameVar(var_str)
+        var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if var[1] == "GF":
+            return self.GlobalFrame.getVarType(var[2])
+        elif var[1] == "TF":
+            return self.LocalFrame[self.numLF].getVarType(var[2])
+        elif var[1] == "LF":
+            return self.TemporaryFrame.getVarType(var[2])
+
+    # returns value of given variable in IPPcode20 notation
+    # @err when variable string is bad or the variable is not defined
+    # @param var_str is the variable defining string from IPPcode20
+    # @return value of given variable if successful
+    def getVarVal(self, var_str):
+        checkNameVar(var_str)
+        var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if var[1] == "GF":
+            return self.GlobalFrame.getVarVal(var[2])
+        elif var[1] == "TF":
+            return self.LocalFrame[self.numLF].getVarVal(var[2])
+        elif var[1] == "LF":
+            return self.TemporaryFrame.getVarVal(var[2])
+
+    # returns value of given variable in IPPcode20 notation if it
+    # matches expected type
+    # @err when variable string is bad or the variable is not defined or its not the expected type
+    # @param var_str is the variable defining string from IPPcode20
+    # @param var_type is the type we expect
+    def getVarValByType(self, var_str, var_type):
+        checkNameVar(var_str)
+        var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if var[1] == "GF":
+            return self.GlobalFrame.getVarValByType(var[2], var_type)
+        elif var[1] == "TF":
+            return self.LocalFrame[self.numLF].getVarValByType(var[2], var_type)
+        elif var[1] == "LF":
+            return self.TemporaryFrame.getVarValByType(var[2], var_type)
+
+    # debug print that prints whole content of global frame, temporary frame and
+    # number of local frames in stack
+    # you need debug = True to make it work
+    def printStat(self):
+        d_print("DATAS printStat start\nGlobal Frame:")
+        self.GlobalFrame.printAllFrame()
+        d_print("Temporary Frame:")
+        self.TemporaryFrame.printAllFrame()
+        d_print("Number of local frames :" + str(self.numLF))
+
+
+class StackStorage:
+    # stored similarly as the variables above. The value and type is separated
+    # to two arrays. One index to both of them presents one item
+    # stackTop variable tells how many items are in the stack and also is index to top
+    valueArray = []
+    typeArray = []
+    stackTop = -1
+
+    def __init__(self):
+        self.valueArray = []
+        self.typeArray = []
+        self.stackTop = -1
+
+    # pushes item to stack
+    # @param item_value is value of the item to be pushed
+    # @param item_type is type of the item to be pushed
+    def stackPush(self, item_value, item_type):
+        self.valueArray.append(item_value)
+        self.typeArray.append(item_type)
+        self.stackTop += 1
+
+    # pops item out of the stack
+    # @err when the stack is empty
+    # @returns top item value if successful
+    def stackPopValue(self):
+        if self.stackTop >= 0:
+            self.typeArray.pop()
+            return self.valueArray.pop()
+        else:
+            d_print("STAS stackPopValue - error nothing in stack to pop")
+            exit(ERR_NOVAL_VAR)
+
+    # returns type of the first item in the stack
+    # @err when the stack is empty
+    # @return type of the top item
+    def stackTopType(self):
+        try:
+            return self.typeArray[self.stackTop]
+        except IndexError:
+            d_print("STAS stackTopVal - error nothing in the stack")
+            exit(ERR_NOVAL_VAR)
+
+    # returns top stack item value if it matches required type
+    # @err when the stack is empty or when the item doesnt match the required type
+    # @param item_type is the required item type
+    # @return top item value if successful
+    def stackPopValueByType(self, item_type):
+        if self.stackTop >= 0:
+            if self.typeArray[self.stackTop] == item_type:
+                self.typeArray.pop()
+                return self.valueArray.pop()
+            else:
+                d_print("STAS stackPopValueByType - error stack top wrong value")
+                exit(ERR_BADTYPE_OP)
+        else:
+            d_print("STAS stackPopValueByType - error nothing in the stack")
+            exit(ERR_NOVAL_VAR)
+
+
+class LabelStorage:
+    # stored similarly as variables. Label names and lines are stored separately
+    # label names in array labelNames and label lines in labelLine. One label defines
+    # same index to both fields
+    labelNames = []
+    labelLines = []
+
+    def __init__(self):
+        self.labelNames = []
+        self.labelLines = []
+
+    # adds a label to the list
+    # @param label_name is name of the label
+    # @param label_line is line of the label
+    def addLabel(self, label_name, label_line):
+        if self.getLabelLine(label_name) == -1:
+            self.labelNames.append(label_name)
+            self.labelLines.append(label_line)
+        else:
+            d_print("LABS addLabel - error label redefinition")
+            exit(ERR_SEMFAULT)
+
+    # returns line of a given label name
+    # @err when label is not defined
+    # @param label_name is label to be searched for
+    # @return label line if successful
+    def getLabelLine(self, label_name):
+        for y in range(len(self.labelNames)):
+            if self.labelNames[y] == label_name:
+                return self.labelLines[y]
+        d_print("LABS getLabelLine - error label not found")
+        exit(ERR_SEMFAULT)
+    # I need label finder, that scans the whole file first ------------------------------------------ TODO
+    # and stores all labels in here.
+
+
+class DataStorage:
+    variables = VariableStorage()
+    labels = LabelStorage()
+    stack = StackStorage()
+
+
 # --- functions ---
 
+# debug print function, prints messages only if var debug is set on True
+# @param message is message to be printed
 def d_print(message):
     if debug:
         print(message)
+
+
+# checks if the given string is correct representation of IPPcode20 variable
+# @err if the string is not correct
+# @return True if its correct
+def checkNameVar(var_str):
+    if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str) is not None:
+        value = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
+        if (value[1] == "GF") | (value == "TF") | (value == "LF"):
+            return True  # value[1] + value[2]
+        else:
+            d_print("DATAS checkNameVar - error nonexisting frame ")
+            exit(ERR_STRUCT_XML)
+    else:
+        d_print("DATAS checkNameVar - error not a variable")
+        exit(ERR_STRUCT_XML)
 
 
 # --- main ---
