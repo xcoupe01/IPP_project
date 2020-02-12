@@ -1,8 +1,16 @@
 <component name="ProjectDictionaryState">
   <dictionary name="coupekv">
     <words>
+      <w>badtype</w>
+      <w>badval</w>
       <w>coupek</w>
+      <w>datas</w>
+      <w>notdef</w>
+      <w>noval</w>
       <w>pcode</w>
+      <w>semantical</w>
+      <w>semfault</w>
+      <w>strfault</w>
       <w>vojtech</w>
       <w>xcoupe</w>
     </words>
