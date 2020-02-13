@@ -49,6 +49,9 @@ class Frame:
     def isDefined(self):
         return self.defined
 
+    def storedVarNames(self):
+        return self.vars
+
     # Tries to create variable of given name
     # @err when frame is not defined or when variable is being redefined
     # @param var_name is name of variable to be created
@@ -60,8 +63,8 @@ class Frame:
                 exit(ERR_SEMFAULT)
             except ValueError:
                 self.vars.append(var_name)
-                self.types.append('')
-                self.values.append('')
+                self.types.append('undef')
+                self.values.append('undef')
         else:
             d_print("FRAME insertVar - error accessing undefined frame")
             exit(ERR_NOTDEF_FR)
@@ -157,7 +160,7 @@ class VariableStorage:
         self.GlobalFrame = Frame(True)
         self.TemporaryFrame = Frame(False)
         self.LocalFrame = []
-        self.numLF = 0
+        self.numLF = -1
 
     # creates new temporary frame. If there was already one, its overwrote
     def createTempFrame(self):
@@ -167,9 +170,13 @@ class VariableStorage:
     # to currently used local frame
     # @err when the temporary frame is not defined
     def pushLocFrame(self):
-        if self.TemporaryFrame.defined():
-            self.LocalFrame.append(self.TemporaryFrame)
+        if self.TemporaryFrame.isDefined():
+            self.LocalFrame.append(Frame(True))
             self.numLF += 1
+            for j in self.TemporaryFrame.storedVarNames():
+                self.LocalFrame[self.numLF].createVar(j)
+                self.LocalFrame[self.numLF].setVar(j,
+                                                   self.TemporaryFrame.getVarType(j), self.TemporaryFrame.getVarVal(j))
             self.TemporaryFrame = Frame(False)
         else:
             d_print("DATAS pushLocFrame - error temporary frame not defined")
@@ -178,7 +185,7 @@ class VariableStorage:
     # pops local frame from the local frames stack to temporary frame
     # this overwrites the temporary frame
     # @err when there is no local frame in stack
-    def popLocFrame(self):
+    def popLocFrame(self):  # ---------------------------------------------------------------------TODO rework as  above
         if self.numLF >= 0:
             self.TemporaryFrame = self.LocalFrame.pop(self.numLF)
             self.numLF -= 1
@@ -194,9 +201,9 @@ class VariableStorage:
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
             self.GlobalFrame.createVar(var[2])
-        elif var[1] == "TF":
-            self.LocalFrame[self.numLF].createVar(var[2])
         elif var[1] == "LF":
+            self.LocalFrame[self.numLF].createVar(var[2])
+        elif var[1] == "TF":
             self.TemporaryFrame.createVar(var[2])
 
     # sets value and type to already created variable in variable storage
@@ -253,9 +260,9 @@ class VariableStorage:
         if var[1] == "GF":
             return self.GlobalFrame.getVarValByType(var[2], var_type)
         elif var[1] == "TF":
-            return self.LocalFrame[self.numLF].getVarValByType(var[2], var_type)
-        elif var[1] == "LF":
             return self.TemporaryFrame.getVarValByType(var[2], var_type)
+        elif var[1] == "LF":
+            return self.LocalFrame[self.numLF].getVarValByType(var[2], var_type)
 
     # debug print that prints whole content of global frame, temporary frame and
     # number of local frames in stack
@@ -265,7 +272,7 @@ class VariableStorage:
         self.GlobalFrame.printAllFrame()
         d_print("Temporary Frame:")
         self.TemporaryFrame.printAllFrame()
-        d_print("Number of local frames :" + str(self.numLF))
+        d_print("Number of local frames :" + str(self.numLF + 1))
 
 
 class StackStorage:
@@ -384,7 +391,7 @@ def d_print(message):
 def checkNameVar(var_str):
     if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str) is not None:
         value = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
-        if (value[1] == "GF") | (value == "TF") | (value == "LF"):
+        if (value[1] == "GF") | (value[1] == "TF") | (value[1] == "LF"):
             return True  # value[1] + value[2]
         else:
             d_print("DATAS checkNameVar - error nonexisting frame ")
@@ -435,7 +442,18 @@ else:
     srcHandle = open(srcFile[1], 'r')
     inHandle = open(inFile[1], 'r')
 
-# frame test bench
+# variable storage test bench
+variables = VariableStorage()
+variables.createVar('GF@var1')
+variables.setVar('GF@var1', 'int', '5')
+variables.createTempFrame()
+variables.createVar('TF@variableTF')
+variables.pushLocFrame()
+variables.printStat()
+print(variables.getVarValByType('LF@variableTF', 'undef'))
+
+"""
+# frame test bench - work as expected
 local_frame = Frame(True)
 local_frame.printAllFrame()
 local_frame.createVar('variable1')
@@ -449,7 +467,6 @@ print(local_frame.getVarValByType('variable1', 'string'))
 local_frame.printAllFrame()
 local_frame.createVar('variable1')
 
-"""
 # temp code to test input and source
 d_print('READ - src file')
 
