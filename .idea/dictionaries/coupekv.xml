@@ -5,12 +5,15 @@
       <w>badval</w>
       <w>coupek</w>
       <w>datas</w>
+      <w>labls</w>
       <w>nonexisting</w>
       <w>notdef</w>
       <w>noval</w>
+      <w>outf</w>
       <w>pcode</w>
       <w>semantical</w>
       <w>semfault</w>
+      <w>staks</w>
       <w>stas</w>
       <w>strfault</w>
       <w>vojtech</w>

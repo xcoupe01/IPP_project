@@ -49,9 +49,6 @@ class Frame:
     def isDefined(self):
         return self.defined
 
-    def storedVarNames(self):
-        return self.vars
-
     # Tries to create variable of given name
     # @err when frame is not defined or when variable is being redefined
     # @param var_name is name of variable to be created
@@ -171,12 +168,8 @@ class VariableStorage:
     # @err when the temporary frame is not defined
     def pushLocFrame(self):
         if self.TemporaryFrame.isDefined():
-            self.LocalFrame.append(Frame(True))
+            self.LocalFrame.append(self.TemporaryFrame)
             self.numLF += 1
-            for j in self.TemporaryFrame.storedVarNames():
-                self.LocalFrame[self.numLF].createVar(j)
-                self.LocalFrame[self.numLF].setVar(j,
-                                                   self.TemporaryFrame.getVarType(j), self.TemporaryFrame.getVarVal(j))
             self.TemporaryFrame = Frame(False)
         else:
             d_print("DATAS pushLocFrame - error temporary frame not defined")
@@ -185,7 +178,7 @@ class VariableStorage:
     # pops local frame from the local frames stack to temporary frame
     # this overwrites the temporary frame
     # @err when there is no local frame in stack
-    def popLocFrame(self):  # ---------------------------------------------------------------------TODO rework as  above
+    def popLocFrame(self):
         if self.numLF >= 0:
             self.TemporaryFrame = self.LocalFrame.pop(self.numLF)
             self.numLF -= 1
@@ -213,6 +206,7 @@ class VariableStorage:
     # @param var_type is the value the variable will be set to
     def setVar(self, var_str, var_type, var_value):
         checkNameVar(var_str)
+        checkValueByType(var_type, var_value)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
             self.GlobalFrame.setVar(var[2], var_type, var_value)
@@ -292,6 +286,7 @@ class StackStorage:
     # @param item_value is value of the item to be pushed
     # @param item_type is type of the item to be pushed
     def stackPush(self, item_value, item_type):
+        checkValueByType(item_type, item_value)
         self.valueArray.append(item_value)
         self.typeArray.append(item_type)
         self.stackTop += 1
@@ -304,17 +299,17 @@ class StackStorage:
             self.typeArray.pop()
             return self.valueArray.pop()
         else:
-            d_print("STAS stackPopValue - error nothing in stack to pop")
+            d_print("STAKS stackPopValue - error nothing in stack to pop")
             exit(ERR_NOVAL_VAR)
 
-    # returns type of the first item in the stack
+    # returns type of the first item in the stack - not a pop !!
     # @err when the stack is empty
     # @return type of the top item
     def stackTopType(self):
         try:
             return self.typeArray[self.stackTop]
         except IndexError:
-            d_print("STAS stackTopVal - error nothing in the stack")
+            d_print("STAKS stackTopVal - error nothing in the stack")
             exit(ERR_NOVAL_VAR)
 
     # returns top stack item value if it matches required type
@@ -327,10 +322,10 @@ class StackStorage:
                 self.typeArray.pop()
                 return self.valueArray.pop()
             else:
-                d_print("STAS stackPopValueByType - error stack top wrong value")
+                d_print("STAKS stackPopValueByType - error stack top wrong value")
                 exit(ERR_BADTYPE_OP)
         else:
-            d_print("STAS stackPopValueByType - error nothing in the stack")
+            d_print("STAKS stackPopValueByType - error nothing in the stack")
             exit(ERR_NOVAL_VAR)
 
 
@@ -349,11 +344,12 @@ class LabelStorage:
     # @param label_name is name of the label
     # @param label_line is line of the label
     def addLabel(self, label_name, label_line):
+        checkLabelName(label_name)
         if self.getLabelLine(label_name) == -1:
             self.labelNames.append(label_name)
             self.labelLines.append(label_line)
         else:
-            d_print("LABS addLabel - error label redefinition")
+            d_print("LABLS addLabel - error label redefinition")
             exit(ERR_SEMFAULT)
 
     # returns line of a given label name
@@ -361,16 +357,17 @@ class LabelStorage:
     # @param label_name is label to be searched for
     # @return label line if successful
     def getLabelLine(self, label_name):
+        checkLabelName(label_name)
         for y in range(len(self.labelNames)):
             if self.labelNames[y] == label_name:
                 return self.labelLines[y]
-        d_print("LABS getLabelLine - error label not found")
+        d_print("LABLS getLabelLine - error label not found")
         exit(ERR_SEMFAULT)
     # I need label finder, that scans the whole file first ------------------------------------------ TODO
     # and stores all labels in here.
 
 
-class DataStorage:
+class Interpret:
     variables = VariableStorage()
     labels = LabelStorage()
     stack = StackStorage()
@@ -387,6 +384,7 @@ def d_print(message):
 
 # checks if the given string is correct representation of IPPcode20 variable
 # @err if the string is not correct
+# @param var_str is the string of variable from IPPcode20
 # @return True if its correct
 def checkNameVar(var_str):
     if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str) is not None:
@@ -394,11 +392,79 @@ def checkNameVar(var_str):
         if (value[1] == "GF") | (value[1] == "TF") | (value[1] == "LF"):
             return True  # value[1] + value[2]
         else:
-            d_print("DATAS checkNameVar - error nonexisting frame ")
+            d_print("OUTF checkNameVar - error nonexisting frame ")
             exit(ERR_STRUCT_XML)
     else:
-        d_print("DATAS checkNameVar - error not a variable")
+        d_print("OUTF checkNameVar - error not a variable")
         exit(ERR_STRUCT_XML)
+
+
+# checks if the given string is correct representation of IPPcode20 label
+# @err when the string is not correct
+# @param label_str is the string of label from IPPcode20
+# @return True if correct
+def checkLabelName(label_str):
+    if re.match(r'^([\w_\-$&%*!?]+)$', label_str):
+        return True
+    else:
+        d_print("OUTF checkLabelName - error bad label name")
+        exit(ERR_STRUCT_XML)
+
+
+# checks if given string matches one of the used types
+# @err when the string does not match any used types
+# @param type_str is string of type to be checked
+# @return True if the string matches one of the used types
+def checkType(type_str):
+    if (type_str == 'int') | (type_str == 'string') | \
+            (type_str == 'bool') | (type_str == 'nil') | (type_str == 'undef'):  # --- TODO wait for Křivka's answer
+        return True
+    else:
+        d_print("OUTF checkType - error undefined type")
+        exit(ERR_STRUCT_XML)
+
+
+# checks if given value corresponds with given type meanwhile
+# the type is also being checked if it exists
+# @err when given value does not correspond with given type
+# @param type_str is string of the type to be checked for
+# @param value_str is string of the value to be checked
+# @return True if successful
+def checkValueByType(type_str, value_str):
+    checkType(type_str)
+    if type_str == 'int':
+        if re.match(r'^\d+$', value_str) is not None:
+            return True
+        else:
+            d_print("OUTF checkValueByType - error bad integer")
+            exit(ERR_STRUCT_XML)
+    elif type_str == 'string':
+        for ic in range(len(value_str)):
+            if value_str[ic] == '\\':
+                try:
+                    if (value_str[ic + 1] >= '0' & value_str[ic + 1] <= '9') & \
+                            (value_str[ic + 2] >= '0' & value_str[ic + 2] <= '9') & \
+                            (value_str[ic + 3] >= '0' & value_str[ic + 3] <= '9'):
+                        ic += 3
+                    else:
+                        d_print("OUTF checkValueByType - error bad string")
+                        exit(ERR_STRUCT_XML)
+                except IndexError:
+                    d_print("OUTF checkValueByType - error bad string")
+                    exit(ERR_STRUCT_XML)
+        return True
+    elif type_str == 'bool':
+        if (value_str == 'true') | (value_str == 'false'):
+            return True
+        else:
+            d_print('OUTF checkValueByType - error bad boolean')
+            exit(ERR_STRUCT_XML)
+    elif type_str == 'nil':
+        if value_str == 'nil':
+            return True
+        else:
+            d_print("OUTF checkValueByType - error bad nil")
+            exit(ERR_STRUCT_XML)
 
 
 # --- main ---
@@ -442,7 +508,8 @@ else:
     srcHandle = open(srcFile[1], 'r')
     inHandle = open(inFile[1], 'r')
 
-# variable storage test bench
+"""
+# variable storage test bench - working as expected
 variables = VariableStorage()
 variables.createVar('GF@var1')
 variables.setVar('GF@var1', 'int', '5')
@@ -451,6 +518,10 @@ variables.createVar('TF@variableTF')
 variables.pushLocFrame()
 variables.printStat()
 print(variables.getVarValByType('LF@variableTF', 'undef'))
+variables.popLocFrame()
+variables.printStat()
+print(variables.getVarValByType('TF@variableTF', 'undef'))
+"""
 
 """
 # frame test bench - work as expected
@@ -467,7 +538,7 @@ print(local_frame.getVarValByType('variable1', 'string'))
 local_frame.printAllFrame()
 local_frame.createVar('variable1')
 
-# temp code to test input and source
+# temp code to test input and source - work as expected
 d_print('READ - src file')
 
 for line in srcHandle:
@@ -478,7 +549,6 @@ d_print('READ -in file')
 for line in inHandle:
     print(line)
 """
-# it works yay
 
 srcHandle.close()
 inHandle.close()

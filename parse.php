@@ -137,13 +137,6 @@ function symbCheck($str){
                   return false;
                 }
                 $i += 3;
-            } elseif($name[$i] == "&" || $name[$i] == "<" || $name[$i] == ">"){
-              $begin = substr($name, 0, $i);
-              $end = substr($name, $i+1);
-              if($name[$i] == "&") $name = $begin . "&amp" . $end;
-              if($name[$i] == "<") $name = $begin . "&lt" . $end;
-              if($name[$i] == ">") $name = $begin . "&gt" . $end;
-              $i += 2;
             }
           }
           decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
