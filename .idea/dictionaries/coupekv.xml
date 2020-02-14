@@ -4,20 +4,38 @@
       <w>badtype</w>
       <w>badval</w>
       <w>coupek</w>
+      <w>createframe</w>
       <w>datas</w>
+      <w>debuging</w>
+      <w>defvar</w>
+      <w>dprint</w>
+      <w>insts</w>
+      <w>jumpifeq</w>
+      <w>jumpifneq</w>
       <w>labls</w>
       <w>nonexisting</w>
       <w>notdef</w>
       <w>noval</w>
+      <w>opcode</w>
       <w>outf</w>
       <w>pcode</w>
+      <w>popframe</w>
+      <w>progheader</w>
+      <w>pushframe</w>
+      <w>pushs</w>
       <w>semantical</w>
       <w>semfault</w>
+      <w>setchar</w>
       <w>staks</w>
       <w>stas</w>
+      <w>stdin</w>
       <w>strfault</w>
+      <w>stri</w>
+      <w>strlen</w>
+      <w>symb</w>
       <w>vojtech</w>
       <w>xcoupe</w>
+      <w>xmlcode</w>
     </words>
   </dictionary>
 </component>

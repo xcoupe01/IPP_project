@@ -1,8 +1,10 @@
 #  interpret of IPPcode20 from XML file
 #  author : Vojtech Coupek - xcoupe01
 
-import sys
+import argparse
 import re
+import sys
+import xml.etree.ElementTree as xml
 
 # --- variables and constants ---
 # exit codes
@@ -22,6 +24,52 @@ ERR_STRFAULT = 58  # < restricted string operations
 ERR_INTERNAL = 99  # < internal fault
 
 debug = True  # < print debug prints
+
+rules = [
+    # base functions
+    ['MOVE', 'var', 'symb'],
+    ['CREATEFRAME'],
+    ['PUSHFRAME'],
+    ['POPFRAME'],
+    ['DEFVAR'],
+    ['CALL'],
+    ['RETURN'],
+    # stack operations
+    ['PUSHS', 'symb'],
+    ['POPS', 'var'],
+    # arithmetical operations, logical operation, conversions
+    ['ADD', 'var', 'symb', 'symb'],
+    ['SUB', 'var', 'symb', 'symb'],
+    ['MUL', 'var', 'symb', 'symb'],
+    ['IDIV', 'var', 'symb', 'symb'],
+    ['LG', 'var', 'symb', 'symb'],
+    ['GT', 'var', 'symb', 'symb'],
+    ['EQ', 'var', 'symb', 'symb'],
+    ['AND', 'var', 'symb', 'symb'],
+    ['OR', 'var', 'symb', 'symb'],
+    ['NOT', 'var', 'symb'],
+    ['INT2CHAR', 'var', 'symb'],
+    ['STRI2INT', 'var', 'symb', 'symb'],
+    # input output operations
+    ['READ', 'var', 'type'],
+    ['WRITE', 'symb'],
+    # string operations
+    ['CONCAT', 'var', 'symb', 'symb'],
+    ['STRLEN', 'var', 'symb'],
+    ['GETCHAR', 'var', 'symb', 'symb'],
+    ['SETCHAR', 'var', 'symb', 'symb'],
+    # type operations
+    ['TYPE', 'var', 'symb'],
+    # jump operations
+    ['LABEL', 'label'],
+    ['JUMP', 'label'],
+    ['JUMPIFEQ', 'label', 'symb', 'symb'],
+    ['JUMPIFNEQ', 'label', 'symb', 'symb'],
+    ['EXIT', 'symb'],
+    # debuging operations
+    ['DPRINT', 'symb'],
+    ['BREAK']
+]
 
 
 # --- objects ---
@@ -367,6 +415,136 @@ class LabelStorage:
     # and stores all labels in here.
 
 
+class Files:
+    srcFileHandle = sys.stdin
+    inFileHandle = sys.stdin
+    code = []
+
+    def __init__(self):
+        self.srcFileHandle = sys.stdin
+        self.inFileHandle = sys.stdin
+        self.code = []
+
+    def setHandles(self):
+        # deal wit args
+        parser = argparse.ArgumentParser(add_help=False)
+        # basic arguments
+        parser.add_argument('-h', '--h', dest='help', action='count')
+        parser.add_argument('--source', default=None)
+        parser.add_argument('--input', default=None)
+        # additional arguments
+        parser.add_argument('--stats', default=None)
+        parser.add_argument('--insts', dest='insts', action='count')
+        parser.add_argument('--vars', dest='vars', action='count')
+        parser.error = arg_err
+        args = parser.parse_args()
+        if args.help is not None:
+            if (args.help == 1) & (args.input is None) & (args.insts is None) & \
+                    (args.source is None) & (args.stats is None) & (args.vars is None):
+                print('\n'
+                      ' Interpret of XML representation of IPPcode20\n'
+                      ' Options: \n'
+                      ' "--help" or "-h    to print help info\n'
+                      ' "--source=[file]"  to set file that the XML will be loaded from    **\n'
+                      ' "--input=[file]"   to set file that the input will be loaded from  **\n'
+                      ' ** at least one of those (last two) must be set. The unset on will be read from STDIN\n')
+                exit(ERR_OK)
+            else:
+                d_print("FILES setHandles - error help used with other arguments")
+                exit(ERR_PARAM)
+        else:
+            if (args.input is None) & (args.source is None):
+                d_print("FILES setHandles - error both source and input unset")
+                exit(ERR_PARAM)
+            else:
+                if args.input is not None:
+                    try:
+                        self.inFileHandle = open(args.input, 'r', encoding='UTF-8')
+                    except OSError:
+                        d_print("FILES setHandles - error input file does not exist")
+                        exit(ERR_IN_FILES)
+                elif args.source is not None:
+
+                    try:
+                        self.srcFileHandle = open(args.source, 'r', encoding='UTF-8')
+                    except OSError:
+                        d_print("FILES setHandles - error source file does not exist")
+                        exit(ERR_IN_FILES)
+
+    def xmlTranslate(self):
+        xmlcode = None
+        try:
+            xmlcode = xml.parse(self.srcFileHandle).getroot()
+        except:
+            d_print("FILES xmlTranslate - error bad xml file")
+            exit(ERR_STRUCT_XML)
+        progheader = False
+        for attribute, value in xmlcode.attrib.items():
+            if (attribute == 'language') & (value == 'IPPcode20'):
+                progheader = True
+            elif (attribute != 'name') | (attribute != 'description'):
+                d_print("FILES xmlTranslate - error bad program attributes")
+                exit(ERR_STRUCT_XML)
+        if not progheader:
+            d_print("FILES xmlTranslate - error bad program attributes")
+            exit(ERR_STRUCT_XML)
+        ins_order = 0
+        for instruction in xmlcode:
+            ins_order += 1
+            if not ((instruction.attrib['order'] == str(ins_order)) & isOpcode(instruction.attrib['opcode']) &
+                    (len(instruction.attrib) == 2)):
+                d_print("FILES xmlTranslate - error bad instruction attributes")
+                exit(ERR_STRUCT_XML)
+            self.code.append(instruction.attrib['opcode'] + ' ')
+            try:
+                for i in range(len(list(instruction))):
+                    inst_arg = instruction.find("arg" + str(i + 1))
+                    arg_type = inst_arg.attrib['type']
+                    arg_text = inst_arg.text
+                    if arg_type == 'var':
+                        if checkNameVar(arg_text):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'label':
+                        if checkLabelName(arg_text):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'type':
+                        if (arg_text == 'int') | (arg_text == 'string') | (arg_text == 'bool'):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'int':
+                        if checkValueByType('int', arg_text):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'bool':
+                        if (arg_text == 'true') | (arg_text == 'false'):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'string':
+                        if arg_text is None:
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + '' + ' '
+                        elif checkValueByType(arg_type, arg_text):
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    elif arg_type == 'nil':
+                        if arg_text == 'nil':
+                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                    else:
+                        d_print("FILES xmlTranslate - error unknown type")
+                        exit(ERR_STRUCT_XML)
+            except IndexError:
+                d_print("FILES xmlTranslate - error bad instruction attributes")
+                exit(ERR_STRUCT_XML)
+            print(instruction.attrib)
+
+    def printCode(self):
+        for i in self.code:
+            print(i)
+
+    def printFiles(self):
+        for line in self.srcFileHandle:
+            print(line)
+
+    def closeFiles(self):
+        self.inFileHandle.close()
+        self.srcFileHandle.close()
+
+
 class Interpret:
     variables = VariableStorage()
     labels = LabelStorage()
@@ -380,6 +558,10 @@ class Interpret:
 def d_print(message):
     if debug:
         print(message)
+
+
+def arg_err():
+    exit(ERR_PARAM)
 
 
 # checks if the given string is correct representation of IPPcode20 variable
@@ -417,7 +599,7 @@ def checkLabelName(label_str):
 # @return True if the string matches one of the used types
 def checkType(type_str):
     if (type_str == 'int') | (type_str == 'string') | \
-            (type_str == 'bool') | (type_str == 'nil') | (type_str == 'undef'):  # --- TODO wait for Křivka's answer
+            (type_str == 'bool') | (type_str == 'nil'):
         return True
     else:
         d_print("OUTF checkType - error undefined type")
@@ -442,9 +624,9 @@ def checkValueByType(type_str, value_str):
         for ic in range(len(value_str)):
             if value_str[ic] == '\\':
                 try:
-                    if (value_str[ic + 1] >= '0' & value_str[ic + 1] <= '9') & \
-                            (value_str[ic + 2] >= '0' & value_str[ic + 2] <= '9') & \
-                            (value_str[ic + 3] >= '0' & value_str[ic + 3] <= '9'):
+                    if ((value_str[ic + 1] >= '0') & (value_str[ic + 1] <= '9')) & \
+                            ((value_str[ic + 2] >= '0') & (value_str[ic + 2] <= '9')) & \
+                            ((value_str[ic + 3] >= '0') & (value_str[ic + 3] <= '9')):
                         ic += 3
                     else:
                         d_print("OUTF checkValueByType - error bad string")
@@ -467,46 +649,20 @@ def checkValueByType(type_str, value_str):
             exit(ERR_STRUCT_XML)
 
 
+def isOpcode(opcode_str):
+    for opcode in rules:
+        if opcode_str == opcode[0]:
+            return True
+    return False
+
+
 # --- main ---
-# dealing with args
-sys.argv.remove('interpret.py')
-srcFile = ''
-inFile = ''
-if (len(sys.argv) == 1) & ((sys.argv[0] == "--help") | (sys.argv[0] == '-h')):
-    print('\n'
-          ' Interpret of XML representation of IPPcode20\n'
-          ' Options: \n'
-          ' "--help" or "-h    to print help info\n'
-          ' "--source=[file]"  to set file that the XML will be loaded from    **\n'
-          ' "--input=[file]"   to set file that the input will be loaded from  **\n'
-          ' ** at least one of those (last two) must be set. The unset on will be read from STDIN\n')
-else:
-    for i in range(len(sys.argv)):
-        if (sys.argv[i] == '--help') | (sys.argv[i] == '-h'):
-            d_print('ARG - err bad args')
-            exit(10)
-        elif re.match(r'^--source=([\S]+)$', sys.argv[i]) is not None:
-            srcFile = re.match(r'^--source=([\S]+)$', sys.argv[i])
-            d_print('ARG - source file set to [' + srcFile[1] + ']')
-        elif re.match(r'^--input=([\S]+)$', sys.argv[i]) is not None:
-            inFile = re.match(r'^--input=([\S]+)$', sys.argv[i])
-            d_print('ARG - input file set to [' + inFile[1] + ']')
-        else:
-            d_print("Unknown arg")
-srcHandle = sys.stdin
-inHandle = sys.stdin
-if (srcFile == '') & (inFile == ''):
-    d_print("ARG - err at least one of --source or --input must be set")
-    exit(11)
-elif srcFile == '':
-    inHandle = open(inFile[1], 'r')
-    d_print('ARG - source set to [STDIN]')
-elif inFile == '':
-    srcHandle = open(srcFile[1], 'r')
-    d_print('ARG - input set to [STDIN]')
-else:
-    srcHandle = open(srcFile[1], 'r')
-    inHandle = open(inFile[1], 'r')
+
+testfile = Files()
+testfile.setHandles()
+testfile.xmlTranslate()
+testfile.printCode()
+testfile.closeFiles()
 
 """
 # variable storage test bench - working as expected
@@ -549,6 +705,3 @@ d_print('READ -in file')
 for line in inHandle:
     print(line)
 """
-
-srcHandle.close()
-inHandle.close()

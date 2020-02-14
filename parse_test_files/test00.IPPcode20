@@ -1,6 +1,6 @@
 .IPPcode20
 DEFVAR GF@counter
-MOVE GF@counter string@# Inicializace promenné na prázdný retezec
+MOVE GF@counter string@ #Inicializace promenné na prázdný retezec
 #Jednoduchá iterace , dokud nebude splnena zadaná podmínka
 LABEL while
 JUMPIFEQ end GF@counter string@aaa
