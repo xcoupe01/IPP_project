@@ -31,8 +31,8 @@ rules = [
     ['CREATEFRAME'],
     ['PUSHFRAME'],
     ['POPFRAME'],
-    ['DEFVAR'],
-    ['CALL'],
+    ['DEFVAR', 'undefvar'],
+    ['CALL', 'label'],
     ['RETURN'],
     # stack operations
     ['PUSHS', 'symb'],
@@ -393,12 +393,12 @@ class LabelStorage:
     # @param label_line is line of the label
     def addLabel(self, label_name, label_line):
         checkLabelName(label_name)
-        if self.getLabelLine(label_name) == -1:
-            self.labelNames.append(label_name)
-            self.labelLines.append(label_line)
-        else:
-            d_print("LABLS addLabel - error label redefinition")
-            exit(ERR_SEMFAULT)
+        for i in self.labelNames:
+            if i == label_name:
+                d_print("LABLS addLabel - error label redefinition")
+                exit(ERR_SEMFAULT)
+        self.labelNames.append(label_name)
+        self.labelLines.append(label_line)
 
     # returns line of a given label name
     # @err when label is not defined
@@ -409,13 +409,14 @@ class LabelStorage:
         for y in range(len(self.labelNames)):
             if self.labelNames[y] == label_name:
                 return self.labelLines[y]
-        d_print("LABLS getLabelLine - error label not found")
+        d_print("LABLS getLabelLine - error label '" + label_name + "' not found ")
         exit(ERR_SEMFAULT)
-    # I need label finder, that scans the whole file first ------------------------------------------ TODO
-    # and stores all labels in here.
 
 
 class FileProcessor:
+    # stores, loads, sets and translates files needed for interpret
+    # array code is array of lines of IPPcode20 and one line is array of words in IPPcode20
+    # also it handles interpret arguments
     srcFileHandle = sys.stdin
     inFileHandle = sys.stdin
     args = None
@@ -429,7 +430,7 @@ class FileProcessor:
 
     # goes through program arguments, saves program settings into args variable
     # and prepares source and input files
-    # @err when uknown argument appears, when neither of source and input is set
+    # @err when unknown argument appears, when neither of source and input is set
     #      when help setting occurs with other arguments, when files cannot be opened
     def setHandles(self):
         # deal wit args
@@ -540,6 +541,17 @@ class FileProcessor:
                 d_print("FILES xmlTranslate - error bad instruction attributes")
                 exit(ERR_STRUCT_XML)
 
+    # returns specific line of code
+    # @param num is number of the line of the code (starts by 0)
+    # @return line of code at index num
+    def getLineCode(self, num):
+        return self.code[num]
+
+    # returns number of lines in the code
+    # @return number of lines in the code
+    def getLenCode(self):
+        return len(self.code)
+
     # debug function printing array of code
     # variable debug need to be True to make it work
     def printCode(self):
@@ -559,10 +571,310 @@ class FileProcessor:
 
 
 class Interpret:
+    # the master class of whole project
     files = FileProcessor()
     variables = VariableStorage()
     labels = LabelStorage()
     stack = StackStorage()
+    ProgCounter = 0
+    CallStack = []
+
+    def __init__(self):
+        self.files = FileProcessor()
+        self.variables = VariableStorage()
+        self.labels = LabelStorage()
+        self.stack = StackStorage()
+        self.ProgCounter = 0
+        self.CallStack = []
+
+    # executes interpretation
+    # @err all possible errors listed above
+    def execute(self):
+        self.files.setHandles()
+        self.files.xmlTranslate()
+        self.scanForLabels()
+        while self.ProgCounter <= self.files.getLenCode():
+            line = self.files.getLineCode(self.ProgCounter)
+            self.checkLineRules(line)
+            if line[0] == 'MOVE':  # MOVE <var> <symbol>
+                self.variables.setVar(line[1], self.getSymbolType(line[2]), self.getSymbolValue(line[2]))
+            elif line[0] == 'CREATEFRAME':  # CREATEFRAME
+                self.variables.createTempFrame()
+            elif line[0] == 'PUSHFRAME':  # PUSHFRAME
+                self.variables.pushLocFrame()
+            elif line[0] == 'POPFRAME':  # POPFRAME
+                self.variables.popLocFrame()
+            elif line[0] == 'DEFVAR':  # DEFVAR <var>
+                # already done by checker - here just test
+                self.variables.getVarType(line[1])
+            elif line[0] == 'CALL':  # CALL <label>
+                self.CallStack.append(self.ProgCounter + 1)
+                self.ProgCounter = self.labels.getLabelLine(line[1])
+            elif line[0] == 'RETURN':  # RETURN
+                if len(self.CallStack) > 0:
+                    self.ProgCounter = self.CallStack.pop(-1)
+                else:
+                    d_print("INTE execute - error poping from empty call stack")
+                    exit(ERR_NOVAL_VAR)
+            elif line[0] == 'PUSHS':  # PUSHS <symb>
+                self.stack.stackPush(self.getSymbolValue(line[1]), self.getSymbolType(line[1]))
+            elif line[0] == 'POPS':  # POPS <var>
+                self.variables.setVar(line[1], self.stack.stackTopType(), self.stack.stackPopValue())
+            elif (line[0] == 'ADD') | (line[0] == 'SUB') | (line[0] == 'MUL') | (line[0] == 'IDIV'):
+                # ADD <var> <symb1> <symb2>
+                # SUB <var> <symb1> <symb2>
+                # MUL <var> <symb1> <symb2>
+                # IDIV <var> <symb1 <symb2>
+                self.doArithmetic(line)
+            elif (line[0] == 'LT') | (line[0] == 'GT') | (line[0] == 'EQ'):
+                # LT <var> <symb1> <symb2>
+                # GT <var> <symb1> <symb2>
+                # EQ <var> <symb1> <symb2>
+                self.doCompare(line)
+            elif (line[0] == 'AND') | (line[0] == 'OR') | (line[0] == 'NOT'):
+                # AND <var> <symb1> <symb2>
+                # OR <var> <symb1 <symb2>
+                # NOT <var> <symb>
+                self.doLogic(line)
+            elif line[0] == 'INT2CHAR':  # INT2CHAR <var> <symb>
+                try:
+                    self.variables.setVar(line[1], 'string', chr(int(self.getSymbolValueByType(line[2], 'int'))))
+                except ValueError:
+                    d_print("INTE execute - error INT2CHAR bad integer")
+                    exit(ERR_STRFAULT)
+            elif line[0] == 'STRI2INT':  # STRI2INT <var> <symb1> <symb2>
+                symb1 = self.getSymbolValueByType(line[2], 'string')
+                symb2 = self.getSymbolValueByType(line[3], 'int')
+                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) < int(symb2)):
+                    d_print("INTE execute - error STRI2INT bad integer argument")
+                    exit(ERR_STRFAULT)
+                self.variables.setVar(line[1], 'int', int(symb1[int(symb2)]))
+            elif line[0] == 'READ':  # READ <var> <type>
+                
+            # continue ------------------------------------------------------------------------------------- TODO
+
+    # scans code for labels and sets them into label storage
+    # @err when the label name in the code does not match IPPcode20 notation
+    def scanForLabels(self):
+        for i in range(self.files.getLenCode()):
+            line = self.files.getLineCode(i)
+            if (line[0] == 'LABEL') & (len(line) == 2):
+                d_print("setting label " + line[1] + " at line " + str(i))
+                self.labels.addLabel(line[1], i)
+
+    # checks if line of code matches the rules writen in the rule table above
+    # for 'var' it checks if the param is defined
+    # for 'symb' it checks if its a variable (then the same check as above)
+    #   or constant (then checks its notation and type).
+    # for 'label' it checks if its defined and if it have correct notation
+    # for 'type' it checks it its 'int', 'bool', 'nil' or 'string'
+    # for 'undefvar' (only in DEFVAR) it tries creates the variable
+    def checkLineRules(self, line_array):
+        for rule_line in rules:
+            if line_array[0] == rule_line[0]:
+                if len(line_array) != len(rule_line):
+                    d_print("INTE checkLineRules - error bad opcode arguments")
+                    exit(ERR_STRUCT_XML)
+                line_array.pop(0)
+                rule_line.pop(0)
+                for i in range(len(rule_line)):
+                    if rule_line[i] == 'var':
+                        self.variables.getVarType(line_array[i])
+                    elif rule_line[i] == 'symb':
+                        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', line_array[i]) is not None:
+                            self.variables.getVarType(line_array[i])
+                        elif re.match(r'^(\w+)@([\S]+)$', line_array[i]):
+                            symbol = re.match(r'^(\w+)@([\S]+)$', line_array[i])
+                            checkValueByType(checkType(symbol[1]), symbol[2])
+                    elif rule_line[i] == 'label':
+                        self.labels.getLabelLine(line_array[i])
+                    elif rule_line[i] == 'type':
+                        if (line_array[i] != 'int') & (line_array[i] != 'bool') & \
+                                (line_array[i] != 'string') & (line_array[i] != 'nil'):
+                            d_print("INTE checkLineRules - error bad type")
+                            exit(ERR_STRUCT_XML)
+                    elif rule_line[i] == 'undefvar':
+                        self.variables.createVar(line_array[i])
+                    else:
+                        d_print("INTE checkLineRules - error bug in rules table")
+                        exit(ERR_INTERNAL)
+
+    # returns type of symbol
+    # @err when symbol is variable and its not defined
+    # @err when symbol have bad notation
+    # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
+    # @return symbol type if successful
+    def getSymbolType(self, symbol_string):
+        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
+            self.variables.getVarType(symbol_string)
+        elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
+            symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
+            return symbol[1]
+        else:
+            d_print("INTE getSymbolType - error not a symbol")
+            exit(ERR_STRUCT_XML)
+
+    # returns value of symbol
+    # @err when symbol is variable and its not defined
+    # @err when symbol have bad notation
+    # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
+    # @return symbol value if successful
+    def getSymbolValue(self, symbol_string):
+        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
+            self.variables.getVarVal(symbol_string)
+        elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
+            symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
+            return symbol[2]
+        else:
+            d_print("INTE getSymbolValue - error not a symbol")
+            exit(ERR_STRUCT_XML)
+
+    # returns value of symbol if it have expected type
+    # @err when symbol is variable and its not defined
+    # @err when symbol have bad notation
+    # @err when the symbol does not match the expected type
+    # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
+    # @return symbol value if successful
+    def getSymbolValueByType(self, symbol_string, symbol_type):
+        if symbol_type == self.getSymbolType(symbol_string):
+            return self.getSymbolValue(symbol_string)
+        else:
+            d_print("INTE getSymbolValueByType - error type of symbol not matching expected type")
+            exit(ERR_BADTYPE_OP)
+
+    # executes arithmetical operations based of the code line
+    # @err when dividing by zero
+    # @err when symbols are not integers
+    # @param  line_array is the line of code split into array by words
+    def doArithmetic(self, line_array):
+        arithmetic_type = line_array[0]
+        symbol1val = self.getSymbolValueByType(line_array[2], 'int')
+        symbol2val = self.getSymbolValueByType(line_array[3], 'int')
+        if arithmetic_type == 'ADD':
+            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+        elif arithmetic_type == 'SUB':
+            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) - int(symbol2val)))
+        elif arithmetic_type == 'MUL':
+            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+        elif arithmetic_type == 'IDIV':
+            if symbol2val != '0':
+                self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+            else:
+                d_print("INTE doArithmetic - error zero division")
+                exit(ERR_BADVAL_OP)
+        else:
+            d_print("INTE doArithmetic - error unknown operator")
+            exit(ERR_INTERNAL)
+
+    # executes comparision operations based of the code line
+    # @err when the operand is nor EQ and nil type occurs
+    # @err when writing to nonedefined variable
+    # @param line_array is the line of code split into array by words
+    def doCompare(self, line_array):
+        comparision_type = line_array[0]
+        if (self.getSymbolType(line_array[2]) == 'nil') | (self.getSymbolType(line_array[3]) == 'nil'):
+            if comparision_type == 'EQ':
+                if self.getSymbolType(line_array[2]) == self.getSymbolType(line_array[3]):
+                    self.variables.setVar(line_array[1], 'bool', 'true')
+                else:
+                    self.variables.setVar(line_array[1], 'bool', 'false')
+            else:
+                d_print("INTE doCompare - error bad nil comparision")
+                exit(ERR_BADTYPE_OP)
+        elif self.getSymbolType(line_array[2]) == self.getSymbolType(line_array[3]):
+            symbolstype = self.getSymbolType(line_array[2])
+            symbol1val = self.getSymbolValue(line_array[2])
+            symbol2val = self.getSymbolValue(line_array[3])
+            if symbolstype == 'int':
+                if comparision_type == 'EQ':
+                    if int(symbol1val) == int(symbol2val):
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'LT':
+                    if int(symbol1val) < int(symbol2val):
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'GT':
+                    if int(symbol1val) > int(symbol2val):
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                else:
+                    d_print("INTE doCompare - error unknown comparision operator")
+                    exit(ERR_INTERNAL)
+            elif symbolstype == 'bool':
+                if comparision_type == 'EQ':
+                    if symbol1val == symbol2val:
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'LT':
+                    if (symbol1val == 'false') & (symbol2val == 'true'):
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'GT':
+                    if (symbol1val == 'true') & (symbol2val == 'false'):
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                else:
+                    d_print("INTE doCompare - error unknown comparsion operator")
+                    exit(ERR_INTERNAL)
+            elif symbolstype == 'string':
+                if comparision_type == 'EQ':
+                    if symbol1val == symbol2val:
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'LT':
+                    if symbol1val < symbol2val:
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'GT':
+                    if symbol1val > symbol2val:
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                else:
+                    d_print("INTE doCompare - error unknown comparsion operator")
+                    exit(ERR_INTERNAL)
+        else:
+            d_print("INTE doCompare - error types not matching")
+            exit(ERR_BADTYPE_OP)
+
+    # executes logic operations
+    # @param line_array is the line of code split into array by words
+    def doLogic(self, line_array):
+        logic_op = line_array[0]
+        if logic_op == 'NOT':
+            symbol = self.getSymbolValueByType(line_array[2], 'bool')
+            if symbol == 'true':
+                self.variables.setVar(line_array[1], 'bool', 'false')
+            elif symbol == 'false':
+                self.variables.setVar(line_array[1], 'bool', 'false')
+            else:
+                d_print("INTE doLogic - error unknown value")
+                exit(ERR_INTERNAL)
+        else:
+            symbol1 = self.getSymbolValueByType(line_array[2], 'bool')
+            symbol2 = self.getSymbolValueByType(line_array[3], 'bool')
+            if logic_op == 'AND':
+                if (symbol1 == 'true') & (symbol2 == 'true'):
+                    self.variables.setVar(line_array[1], 'bool', 'true')
+                else:
+                    self.variables.setVar(line_array[1], 'bool', 'false')
+            elif logic_op == 'OR':
+                if (symbol1 == 'true') | (symbol2 == 'true'):
+                    self.variables.setVar(line_array[1], 'bool', 'true')
+                else:
+                    self.variables.setVar(line_array[1], 'bool', 'false')
+            else:
+                d_print("INTE doLogic - error logic operator")
+                exit(ERR_INTERNAL)
 
 
 # --- functions ---
@@ -574,6 +886,7 @@ def d_print(message):
         print(message)
 
 
+# error function for argparse used in class Files function setHandles()
 def arg_err():
     exit(ERR_PARAM)
 
@@ -631,6 +944,8 @@ def checkValueByType(type_str, value_str):
     if type_str == 'int':
         if re.match(r'^\d+$', value_str) is not None:
             return True
+        elif re.match(r'^-\d+$', value_str) is not None:
+            return True
         else:
             d_print("OUTF checkValueByType - error bad integer")
             exit(ERR_STRUCT_XML)
@@ -663,6 +978,9 @@ def checkValueByType(type_str, value_str):
             exit(ERR_STRUCT_XML)
 
 
+# checks if given string is in the opcode rule table
+# @param opcode_str is given string to be checked
+# @return True if given string is opcode, False otherwise
 def isOpcode(opcode_str):
     for opcode in rules:
         if opcode_str == opcode[0]:
@@ -672,50 +990,5 @@ def isOpcode(opcode_str):
 
 # --- main ---
 
-testfile = FileProcessor()
-testfile.setHandles()
-testfile.xmlTranslate()
-testfile.printCode()
-testfile.closeFiles()
-
-"""
-# variable storage test bench - working as expected
-variables = VariableStorage()
-variables.createVar('GF@var1')
-variables.setVar('GF@var1', 'int', '5')
-variables.createTempFrame()
-variables.createVar('TF@variableTF')
-variables.pushLocFrame()
-variables.printStat()
-print(variables.getVarValByType('LF@variableTF', 'undef'))
-variables.popLocFrame()
-variables.printStat()
-print(variables.getVarValByType('TF@variableTF', 'undef'))
-"""
-
-"""
-# frame test bench - work as expected
-local_frame = Frame(True)
-local_frame.printAllFrame()
-local_frame.createVar('variable1')
-local_frame.createVar('var2')
-local_frame.setVar('variable1', "string", "hello world")
-local_frame.setVar('var2', "int", "5")
-print(local_frame.getVarVal('variable1'))
-print(local_frame.getVarType('variable1'))
-print(local_frame.getVarVal('variable1'))
-print(local_frame.getVarValByType('variable1', 'string'))
-local_frame.printAllFrame()
-local_frame.createVar('variable1')
-
-# temp code to test input and source - work as expected
-d_print('READ - src file')
-
-for line in srcHandle:
-    print(line)
-
-d_print('READ -in file')
-
-for line in inHandle:
-    print(line)
-"""
+program = Interpret()
+program.execute()

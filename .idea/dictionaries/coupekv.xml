@@ -1,6 +1,7 @@
 <component name="ProjectDictionaryState">
   <dictionary name="coupekv">
     <words>
+      <w>argparse</w>
       <w>badtype</w>
       <w>badval</w>
       <w>coupek</w>
@@ -10,6 +11,7 @@
       <w>defvar</w>
       <w>dprint</w>
       <w>insts</w>
+      <w>inte</w>
       <w>jumpifeq</w>
       <w>jumpifneq</w>
       <w>labls</w>
@@ -20,6 +22,8 @@
       <w>outf</w>
       <w>pcode</w>
       <w>popframe</w>
+      <w>poping</w>
+      <w>prog</w>
       <w>progheader</w>
       <w>pushframe</w>
       <w>pushs</w>
@@ -33,6 +37,8 @@
       <w>stri</w>
       <w>strlen</w>
       <w>symb</w>
+      <w>symbolstype</w>
+      <w>undefvar</w>
       <w>vojtech</w>
       <w>xcoupe</w>
       <w>xmlcode</w>
