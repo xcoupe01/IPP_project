@@ -415,16 +415,22 @@ class LabelStorage:
     # and stores all labels in here.
 
 
-class Files:
+class FileProcessor:
     srcFileHandle = sys.stdin
     inFileHandle = sys.stdin
+    args = None
     code = []
 
     def __init__(self):
         self.srcFileHandle = sys.stdin
         self.inFileHandle = sys.stdin
+        self.args = None
         self.code = []
 
+    # goes through program arguments, saves program settings into args variable
+    # and prepares source and input files
+    # @err when uknown argument appears, when neither of source and input is set
+    #      when help setting occurs with other arguments, when files cannot be opened
     def setHandles(self):
         # deal wit args
         parser = argparse.ArgumentParser(add_help=False)
@@ -437,10 +443,10 @@ class Files:
         parser.add_argument('--insts', dest='insts', action='count')
         parser.add_argument('--vars', dest='vars', action='count')
         parser.error = arg_err
-        args = parser.parse_args()
-        if args.help is not None:
-            if (args.help == 1) & (args.input is None) & (args.insts is None) & \
-                    (args.source is None) & (args.stats is None) & (args.vars is None):
+        self.args = parser.parse_args()
+        if self.args.help is not None:
+            if (self.args.help == 1) & (self.args.input is None) & (self.args.insts is None) & \
+                    (self.args.source is None) & (self.args.stats is None) & (self.args.vars is None):
                 print('\n'
                       ' Interpret of XML representation of IPPcode20\n'
                       ' Options: \n'
@@ -453,24 +459,27 @@ class Files:
                 d_print("FILES setHandles - error help used with other arguments")
                 exit(ERR_PARAM)
         else:
-            if (args.input is None) & (args.source is None):
+            if (self.args.input is None) & (self.args.source is None):
                 d_print("FILES setHandles - error both source and input unset")
                 exit(ERR_PARAM)
             else:
-                if args.input is not None:
+                if self.args.input is not None:
                     try:
-                        self.inFileHandle = open(args.input, 'r', encoding='UTF-8')
+                        self.inFileHandle = open(self.args.input, 'r', encoding='UTF-8')
                     except OSError:
                         d_print("FILES setHandles - error input file does not exist")
                         exit(ERR_IN_FILES)
-                elif args.source is not None:
+                elif self.args.source is not None:
 
                     try:
-                        self.srcFileHandle = open(args.source, 'r', encoding='UTF-8')
+                        self.srcFileHandle = open(self.args.source, 'r', encoding='UTF-8')
                     except OSError:
                         d_print("FILES setHandles - error source file does not exist")
                         exit(ERR_IN_FILES)
 
+    # takes source file input and translates the xml format to array code
+    # @err when bad xml structure appears
+    # @return code when successful
     def xmlTranslate(self):
         xmlcode = None
         try:
@@ -495,7 +504,7 @@ class Files:
                     (len(instruction.attrib) == 2)):
                 d_print("FILES xmlTranslate - error bad instruction attributes")
                 exit(ERR_STRUCT_XML)
-            self.code.append(instruction.attrib['opcode'] + ' ')
+            self.code.append([instruction.attrib['opcode']])
             try:
                 for i in range(len(list(instruction))):
                     inst_arg = instruction.find("arg" + str(i + 1))
@@ -503,49 +512,54 @@ class Files:
                     arg_text = inst_arg.text
                     if arg_type == 'var':
                         if checkNameVar(arg_text):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_text)
                     elif arg_type == 'label':
                         if checkLabelName(arg_text):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_text)
                     elif arg_type == 'type':
                         if (arg_text == 'int') | (arg_text == 'string') | (arg_text == 'bool'):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_text)
                     elif arg_type == 'int':
                         if checkValueByType('int', arg_text):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_type + '@' + arg_text)
                     elif arg_type == 'bool':
                         if (arg_text == 'true') | (arg_text == 'false'):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_type + '@' + arg_text)
                     elif arg_type == 'string':
                         if arg_text is None:
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + '' + ' '
+                            self.code[ins_order - 1].append(arg_type + '@')
                         elif checkValueByType(arg_type, arg_text):
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_type + '@' + arg_text)
                     elif arg_type == 'nil':
                         if arg_text == 'nil':
-                            self.code[ins_order - 1] = self.code[ins_order - 1] + arg_text + ' '
+                            self.code[ins_order - 1].append(arg_type + '@' + arg_text)
                     else:
                         d_print("FILES xmlTranslate - error unknown type")
                         exit(ERR_STRUCT_XML)
             except IndexError:
                 d_print("FILES xmlTranslate - error bad instruction attributes")
                 exit(ERR_STRUCT_XML)
-            print(instruction.attrib)
 
+    # debug function printing array of code
+    # variable debug need to be True to make it work
     def printCode(self):
         for i in self.code:
-            print(i)
+            d_print(i)
 
+    # debug function that prints input in source handle
+    # variable debug need to be True to make it work
     def printFiles(self):
         for line in self.srcFileHandle:
-            print(line)
+            d_print(line)
 
+    # closes opened files
     def closeFiles(self):
         self.inFileHandle.close()
         self.srcFileHandle.close()
 
 
 class Interpret:
+    files = FileProcessor()
     variables = VariableStorage()
     labels = LabelStorage()
     stack = StackStorage()
@@ -658,7 +672,7 @@ def isOpcode(opcode_str):
 
 # --- main ---
 
-testfile = Files()
+testfile = FileProcessor()
 testfile.setHandles()
 testfile.xmlTranslate()
 testfile.printCode()
