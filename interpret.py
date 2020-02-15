@@ -95,12 +95,14 @@ class Frame:
     # Says if the frame is defined
     # @return true if defined, false otherwise
     def isDefined(self):
+        d_print("\tFRAME\tiDefined")
         return self.defined
 
     # Tries to create variable of given name
     # @err when frame is not defined or when variable is being redefined
     # @param var_name is name of variable to be created
     def createVar(self, var_name):
+        d_print("\tFRAME\tcreateVar\t" + var_name)
         if self.defined:
             try:
                 self.vars[self.vars.index(var_name)] = [var_name + '-redefined']
@@ -120,6 +122,7 @@ class Frame:
     # @param var_type is type that the variable is updated to
     # @param var_value is value that the variable is updated to
     def setVar(self, var_name, var_type, var_value):
+        d_print("\tFRAME\tsetVar\t" + var_name + " " + var_type + " " + var_value)
         if self.defined:
             try:
                 self.types[self.vars.index(var_name)] = var_type
@@ -136,6 +139,7 @@ class Frame:
     # @param var_name is variable which type we want to know
     # @return variable type ('int', 'string' ect.) if successful
     def getVarType(self, var_name):
+        d_print("\tFRAME\tgetVarType\t" + var_name)
         if self.defined:
             try:
                 return self.types[self.vars.index(var_name)]
@@ -151,6 +155,7 @@ class Frame:
     # @param var_name is variable which value we want to know
     # @return variable value if successful
     def getVarVal(self, var_name):
+        d_print("\tFRAME\tgetVarVal\t" + var_name)
         if self.defined:
             try:
                 return self.values[self.vars.index(var_name)]
@@ -167,6 +172,7 @@ class Frame:
     # @param var_type is the type that we expect
     # @return variable value if successful
     def getVarValByType(self, var_name, var_type):
+        d_print("\tFRAME\tgetVarValByType\t" + var_name + " " + var_type)
         if self.defined:
             try:
                 if self.types[self.vars.index(var_name)] == var_type:
@@ -187,7 +193,7 @@ class Frame:
     # debug print function, that prints all data stored in frame
     # you need to have debug = True to make it work
     def printAllFrame(self):
-        d_print("FRAME printAllFrame start")
+        d_print("\tFRAME printAllFrame start")
         for x in range(len(self.vars)):
             d_print("\titem [" + str(x) + "] name  [" + self.vars[x] + "]")
             d_print("\titem [" + str(x) + "] type  [" + self.types[x] + "]")
@@ -209,12 +215,14 @@ class VariableStorage:
 
     # creates new temporary frame. If there was already one, its overwrote
     def createTempFrame(self):
+        d_print("\tDATAS\tcreateTempFrame")
         self.TemporaryFrame = Frame(True)
 
     # pushes temporary frame to stack of local frames and sets it
     # to currently used local frame
     # @err when the temporary frame is not defined
     def pushLocFrame(self):
+        d_print("\tDATAS\tpushLocFrame")
         if self.TemporaryFrame.isDefined():
             self.LocalFrame.append(self.TemporaryFrame)
             self.numLF += 1
@@ -227,6 +235,7 @@ class VariableStorage:
     # this overwrites the temporary frame
     # @err when there is no local frame in stack
     def popLocFrame(self):
+        d_print("\tDATAS\tpopLocFrame")
         if self.numLF >= 0:
             self.TemporaryFrame = self.LocalFrame.pop(self.numLF)
             self.numLF -= 1
@@ -238,6 +247,7 @@ class VariableStorage:
     # @err when the variable string is bad or when trying to redefine existing variable
     # @param var_str is the variable defining string from IPPcode20
     def createVar(self, var_str):
+        d_print("\tDATAS\tcreateVar\t" + var_str)
         checkNameVar(var_str)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
@@ -253,6 +263,7 @@ class VariableStorage:
     # @param var_type is the type the variable will be set to
     # @param var_type is the value the variable will be set to
     def setVar(self, var_str, var_type, var_value):
+        d_print("\tDATAS\tsetVar\t" + var_str + " " + var_type + " " + var_value)
         checkNameVar(var_str)
         checkValueByType(var_type, var_value)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
@@ -268,6 +279,7 @@ class VariableStorage:
     # @param var_str is the variable defining string from IPPcode20
     # @return type of given variable if successful
     def getVarType(self, var_str):
+        d_print("\tDATAS\tgetVarType\t" + var_str)
         checkNameVar(var_str)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
@@ -282,6 +294,7 @@ class VariableStorage:
     # @param var_str is the variable defining string from IPPcode20
     # @return value of given variable if successful
     def getVarVal(self, var_str):
+        d_print("\tDATAS\tgetVarVal\t" + var_str)
         checkNameVar(var_str)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
@@ -297,6 +310,7 @@ class VariableStorage:
     # @param var_str is the variable defining string from IPPcode20
     # @param var_type is the type we expect
     def getVarValByType(self, var_str, var_type):
+        d_print("\tDATAS\tgetVarValByType" + var_str + " " + var_type)
         checkNameVar(var_str)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if var[1] == "GF":
@@ -334,6 +348,7 @@ class StackStorage:
     # @param item_value is value of the item to be pushed
     # @param item_type is type of the item to be pushed
     def stackPush(self, item_value, item_type):
+        d_print("\tSTAKS\tstackPush\t" + item_value + " " + item_type)
         checkValueByType(item_type, item_value)
         self.valueArray.append(item_value)
         self.typeArray.append(item_type)
@@ -343,6 +358,7 @@ class StackStorage:
     # @err when the stack is empty
     # @returns top item value if successful
     def stackPopValue(self):
+        d_print("\tSTAKS\tstackPopValue")
         if self.stackTop >= 0:
             self.typeArray.pop()
             return self.valueArray.pop()
@@ -354,6 +370,7 @@ class StackStorage:
     # @err when the stack is empty
     # @return type of the top item
     def stackTopType(self):
+        d_print("\tSTAKS\tstackTopType")
         try:
             return self.typeArray[self.stackTop]
         except IndexError:
@@ -365,6 +382,7 @@ class StackStorage:
     # @param item_type is the required item type
     # @return top item value if successful
     def stackPopValueByType(self, item_type):
+        d_print("\tSTAKS\tstackPopValue\t" + item_type)
         if self.stackTop >= 0:
             if self.typeArray[self.stackTop] == item_type:
                 self.typeArray.pop()
@@ -392,6 +410,7 @@ class LabelStorage:
     # @param label_name is name of the label
     # @param label_line is line of the label
     def addLabel(self, label_name, label_line):
+        d_print("\tLABLS\taddLabel\t" + label_name + " " + str(label_line))
         checkLabelName(label_name)
         for i in self.labelNames:
             if i == label_name:
@@ -405,6 +424,7 @@ class LabelStorage:
     # @param label_name is label to be searched for
     # @return label line if successful
     def getLabelLine(self, label_name):
+        d_print("\tLABLS\tgetLabelLine\t" + label_name)
         checkLabelName(label_name)
         for y in range(len(self.labelNames)):
             if self.labelNames[y] == label_name:
@@ -433,6 +453,7 @@ class FileProcessor:
     # @err when unknown argument appears, when neither of source and input is set
     #      when help setting occurs with other arguments, when files cannot be opened
     def setHandles(self):
+        d_print("\tFILES\tsetHandles")
         # deal wit args
         parser = argparse.ArgumentParser(add_help=False)
         # basic arguments
@@ -482,6 +503,7 @@ class FileProcessor:
     # @err when bad xml structure appears
     # @return code when successful
     def xmlTranslate(self):
+        d_print("\tFILES\txmlTranslate")
         xmlcode = None
         try:
             xmlcode = xml.parse(self.srcFileHandle).getroot()
@@ -545,16 +567,19 @@ class FileProcessor:
     # @param num is number of the line of the code (starts by 0)
     # @return line of code at index num
     def getLineCode(self, num):
+        d_print("\tFILES\tgetLineCode\t" + str(num))
         return self.code[num]
 
     # returns number of lines in the code
     # @return number of lines in the code
     def getLenCode(self):
+        d_print("\tFILES\tgetLenCode")
         return len(self.code)
 
     # debug function printing array of code
     # variable debug need to be True to make it work
     def printCode(self):
+        d_print("\tFILES\tprintCode")
         for i in self.code:
             d_print(i)
 
@@ -593,8 +618,9 @@ class Interpret:
         self.files.setHandles()
         self.files.xmlTranslate()
         self.scanForLabels()
-        while self.ProgCounter <= self.files.getLenCode():
+        while self.ProgCounter < self.files.getLenCode():
             line = self.files.getLineCode(self.ProgCounter)
+            d_print(line)
             self.checkLineRules(line)
             if line[0] == 'MOVE':  # MOVE <var> <symbol>
                 self.variables.setVar(line[1], self.getSymbolType(line[2]), self.getSymbolValue(line[2]))
@@ -650,12 +676,92 @@ class Interpret:
                     exit(ERR_STRFAULT)
                 self.variables.setVar(line[1], 'int', int(symb1[int(symb2)]))
             elif line[0] == 'READ':  # READ <var> <type>
-                
-            # continue ------------------------------------------------------------------------------------- TODO
+                # not sure what to do yet ----------------------------------------------------------------- TODO
+                print(':/')
+            elif line[0] == 'WRITE':  # WRITE <symb>
+                symbtype = self.getSymbolType(line[1])
+                symbval = self.getSymbolValue(line[1])
+                if symbtype == 'nil':
+                    print('', end='')
+                else:
+                    print(symbval, end='')
+            elif line[0] == 'CONCAT':  # CONCAT <var> <symb1> <symb2>
+                symb1 = self.getSymbolValueByType(line[2], 'string')
+                symb2 = self.getSymbolValueByType(line[3], 'string')
+                if symb1 is None:
+                    self.variables.setVar(line[1], 'string', symb2)
+                if symb2 is None:
+                    self.variables.setVar(line[1], 'string', symb1)
+                if (symb2 is not None) & (symb1 is not None):
+                    self.variables.setVar(line[1], 'string', symb1 + symb2)
+            elif line[0] == 'GETCHAR':  # GETCHAR <var> <symb1> <symb2>
+                symb1 = self.getSymbolValueByType(line[2], 'int')
+                symb2 = self.getSymbolValueByType(line[3], 'string')
+                if (re.match(r'^-\d+$', symb1) is not None) | (len(symb2) < int(symb1)):
+                    d_print("INTE execute - error GETCHAR bad integer argument")
+                    exit(ERR_STRFAULT)
+                self.variables.setVar(line[1], 'string', symb2[int(symb1)])
+            elif line[0] == 'SETCHAR':  # SETCHAR <var> <symb1> <symb2>
+                varvalue = self.variables.getVarValByType(line[1], 'string')
+                symb1 = self.getSymbolValueByType(line[2], 'int')
+                symb2 = self.getSymbolValueByType(line[3], 'string')
+                if (re.match(r'^-\d+$', symb1) is not None) | (len(symb2) < int(varvalue)):
+                    d_print("INTE execute - error SETCHAR bad integer argument")
+                    exit(ERR_STRFAULT)
+                varvalue[int(symb1)] = symb2[0]
+                self.variables.setVar(line[1], 'string', varvalue)
+            elif line[0] == 'TYPE':  # TYPE <var> <symb>
+                self.variables.setVar(line[1], 'string', self.getSymbolType(line[2]))
+            elif line[0] == 'LABEL':  # LABEL <label>
+                # already set by scan labels function
+                self.labels.getLabelLine(line[1])
+            elif line[0] == 'JUMP':  # JUMP <label>
+                self.ProgCounter = self.labels.getLabelLine(line[1])
+            elif line[0] == 'JUMPIFEQ':  # JUMPIFEQ <label> <symb1> <symb2>
+                symb1type = self.getSymbolType(line[2])
+                symb2type = self.getSymbolType(line[3])
+                symb1val = self.getSymbolValue(line[2])
+                symb2val = self.getSymbolValue(line[3])
+                if symb1type == symb2type:
+                    if symb1val == symb2val:
+                        self.ProgCounter = self.labels.getLabelLine(line[1])
+                elif (symb1type != 'nil') & (symb2type != 'nil'):
+                    d_print("INTE execute - error JUMPIFEQ bad argument types  [" + str(symb1type) + "] [" + str(
+                        symb2type) + "]")
+                    exit(ERR_BADTYPE_OP)
+            elif line[0] == 'JUMPIFNEQ':  # JUMPIFNEQ <label> <symb1> <symb2>
+                symb1type = self.getSymbolType(line[2])
+                symb2type = self.getSymbolType(line[3])
+                symb1val = self.getSymbolValue(line[2])
+                symb2val = self.getSymbolValue(line[3])
+                if symb1type == symb2type:
+                    if symb1val != symb2val:
+                        self.ProgCounter = self.labels.getLabelLine(line[1])
+                elif (symb1type != 'nil') & (symb2type != 'nil'):
+                    d_print("INTE execute - error JUMPIFEQ bad argument types [" + symb1type + "] [" + symb2type + "]")
+                    exit(ERR_BADTYPE_OP)
+            elif line[0] == 'EXIT':  # EXIT <symb>
+                symb = self.getSymbolValueByType(line[1], 'int')
+                if (int(symb) >= 0) & (int(symb) <= 49):
+                    exit(symb)
+                else:
+                    d_print("INTE execute - error EXIT bad integer value")
+            elif line[0] == 'DPRINT':  # DPRINT <symb>
+                symb = self.getSymbolValue(line[1])
+                print(symb, file=sys.stderr)
+            elif line[0] == 'BREAK':  # BREAK
+                # printing of statistics ------------------------------------------------------------------- TODO
+                hello = True
+            else:
+                d_print("INTE execute - error unknown opcode " + line[0])
+                exit(ERR_INTERNAL)
+            self.ProgCounter += 1
+        exit(ERR_OK)
 
     # scans code for labels and sets them into label storage
     # @err when the label name in the code does not match IPPcode20 notation
     def scanForLabels(self):
+        d_print("\tINTE\tscanForLabels")
         for i in range(self.files.getLenCode()):
             line = self.files.getLineCode(i)
             if (line[0] == 'LABEL') & (len(line) == 2):
@@ -670,31 +776,33 @@ class Interpret:
     # for 'type' it checks it its 'int', 'bool', 'nil' or 'string'
     # for 'undefvar' (only in DEFVAR) it tries creates the variable
     def checkLineRules(self, line_array):
+        d_print("\tINTE\tcheckLineRules\t" + str(line_array))
         for rule_line in rules:
             if line_array[0] == rule_line[0]:
                 if len(line_array) != len(rule_line):
                     d_print("INTE checkLineRules - error bad opcode arguments")
                     exit(ERR_STRUCT_XML)
-                line_array.pop(0)
-                rule_line.pop(0)
-                for i in range(len(rule_line)):
-                    if rule_line[i] == 'var':
-                        self.variables.getVarType(line_array[i])
-                    elif rule_line[i] == 'symb':
-                        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', line_array[i]) is not None:
-                            self.variables.getVarType(line_array[i])
-                        elif re.match(r'^(\w+)@([\S]+)$', line_array[i]):
-                            symbol = re.match(r'^(\w+)@([\S]+)$', line_array[i])
-                            checkValueByType(checkType(symbol[1]), symbol[2])
-                    elif rule_line[i] == 'label':
-                        self.labels.getLabelLine(line_array[i])
-                    elif rule_line[i] == 'type':
-                        if (line_array[i] != 'int') & (line_array[i] != 'bool') & \
-                                (line_array[i] != 'string') & (line_array[i] != 'nil'):
+                # line_array.pop(0)
+                # rule_line.pop(0)
+                for i in range(len(rule_line) - 1):
+                    if rule_line[i + 1] == 'var':
+                        self.variables.getVarType(line_array[i + 1])
+                    elif rule_line[i + 1] == 'symb':
+                        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', line_array[i + 1]) is not None:
+                            self.variables.getVarType(line_array[i + 1])
+                        elif re.match(r'^(\w+)@([\S]+)$', line_array[i + 1]):
+                            symbol = re.match(r'^(\w+)@([\S]+)$', line_array[i + 1])
+                            checkType(symbol[1])
+                            checkValueByType(symbol[1], symbol[2])
+                    elif rule_line[i + 1] == 'label':
+                        self.labels.getLabelLine(line_array[i + 1])
+                    elif rule_line[i + 1] == 'type':
+                        if (line_array[i + 1] != 'int') & (line_array[i + 1] != 'bool') & \
+                                (line_array[i + 1] != 'string') & (line_array[i + 1] != 'nil'):
                             d_print("INTE checkLineRules - error bad type")
                             exit(ERR_STRUCT_XML)
-                    elif rule_line[i] == 'undefvar':
-                        self.variables.createVar(line_array[i])
+                    elif rule_line[i + 1] == 'undefvar':
+                        self.variables.createVar(line_array[i + 1])
                     else:
                         d_print("INTE checkLineRules - error bug in rules table")
                         exit(ERR_INTERNAL)
@@ -705,13 +813,16 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol type if successful
     def getSymbolType(self, symbol_string):
+        d_print("\tINTE\tgetSymbolType\t" + symbol_string)
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
-            self.variables.getVarType(symbol_string)
+            return self.variables.getVarType(symbol_string)
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
+        elif re.match(r'^string@$', symbol_string):
+            return 'string'
         else:
-            d_print("INTE getSymbolType - error not a symbol")
+            d_print("INTE getSymbolType - error not a symbol " + symbol_string)
             exit(ERR_STRUCT_XML)
 
     # returns value of symbol
@@ -720,11 +831,14 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol value if successful
     def getSymbolValue(self, symbol_string):
+        d_print("\tINTE\tgetSymbolValue\t" + symbol_string)
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
-            self.variables.getVarVal(symbol_string)
+            return self.variables.getVarVal(symbol_string)
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[2]
+        elif re.match(r'^string@$', symbol_string):
+            return ''
         else:
             d_print("INTE getSymbolValue - error not a symbol")
             exit(ERR_STRUCT_XML)
@@ -736,6 +850,7 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol value if successful
     def getSymbolValueByType(self, symbol_string, symbol_type):
+        d_print("\tINTE\tgetSymbolValueByType\t" + symbol_string + " " + symbol_type)
         if symbol_type == self.getSymbolType(symbol_string):
             return self.getSymbolValue(symbol_string)
         else:
@@ -747,6 +862,7 @@ class Interpret:
     # @err when symbols are not integers
     # @param  line_array is the line of code split into array by words
     def doArithmetic(self, line_array):
+        d_print("\tINTE\tdoArithmetic\t" + line_array)
         arithmetic_type = line_array[0]
         symbol1val = self.getSymbolValueByType(line_array[2], 'int')
         symbol2val = self.getSymbolValueByType(line_array[3], 'int')
@@ -768,9 +884,10 @@ class Interpret:
 
     # executes comparision operations based of the code line
     # @err when the operand is nor EQ and nil type occurs
-    # @err when writing to nonedefined variable
+    # @err when writing to undefined variable
     # @param line_array is the line of code split into array by words
     def doCompare(self, line_array):
+        d_print("\tINTE\tdoCompare\t" + line_array)
         comparision_type = line_array[0]
         if (self.getSymbolType(line_array[2]) == 'nil') | (self.getSymbolType(line_array[3]) == 'nil'):
             if comparision_type == 'EQ':
@@ -849,6 +966,7 @@ class Interpret:
     # executes logic operations
     # @param line_array is the line of code split into array by words
     def doLogic(self, line_array):
+        d_print("\tINTE\tdoLogic\t" + line_array)
         logic_op = line_array[0]
         if logic_op == 'NOT':
             symbol = self.getSymbolValueByType(line_array[2], 'bool')
@@ -896,6 +1014,7 @@ def arg_err():
 # @param var_str is the string of variable from IPPcode20
 # @return True if its correct
 def checkNameVar(var_str):
+    d_print("\tOUTF\tcheckNameVar\t" + var_str)
     if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str) is not None:
         value = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
         if (value[1] == "GF") | (value[1] == "TF") | (value[1] == "LF"):
@@ -913,6 +1032,7 @@ def checkNameVar(var_str):
 # @param label_str is the string of label from IPPcode20
 # @return True if correct
 def checkLabelName(label_str):
+    d_print("\tOUTF\tcheckLabelName\t" + label_str)
     if re.match(r'^([\w_\-$&%*!?]+)$', label_str):
         return True
     else:
@@ -925,11 +1045,12 @@ def checkLabelName(label_str):
 # @param type_str is string of type to be checked
 # @return True if the string matches one of the used types
 def checkType(type_str):
+    d_print("\tOUTF\tcheckType\t" + str(type_str))
     if (type_str == 'int') | (type_str == 'string') | \
             (type_str == 'bool') | (type_str == 'nil'):
         return True
     else:
-        d_print("OUTF checkType - error undefined type")
+        d_print("OUTF checkType - error undefined type [" + str(type_str) + "]")
         exit(ERR_STRUCT_XML)
 
 
@@ -940,6 +1061,7 @@ def checkType(type_str):
 # @param value_str is string of the value to be checked
 # @return True if successful
 def checkValueByType(type_str, value_str):
+    d_print("\tOUTF\tcheckValueByType\t" + str(type_str) + " " + str(value_str))
     checkType(type_str)
     if type_str == 'int':
         if re.match(r'^\d+$', value_str) is not None:
@@ -982,6 +1104,7 @@ def checkValueByType(type_str, value_str):
 # @param opcode_str is given string to be checked
 # @return True if given string is opcode, False otherwise
 def isOpcode(opcode_str):
+    d_print("\tOUTF\tisOpcode\t" + opcode_str)
     for opcode in rules:
         if opcode_str == opcode[0]:
             return True
