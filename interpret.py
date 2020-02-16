@@ -23,7 +23,7 @@ ERR_BADVAL_OP = 57  # < bad value of operand
 ERR_STRFAULT = 58  # < restricted string operations
 ERR_INTERNAL = 99  # < internal fault
 
-debug = True  # < print debug prints
+debug = False  # < print debug prints
 
 rules = [
     # base functions
@@ -122,7 +122,7 @@ class Frame:
     # @param var_type is type that the variable is updated to
     # @param var_value is value that the variable is updated to
     def setVar(self, var_name, var_type, var_value):
-        d_print("\tFRAME\tsetVar\t" + var_name + " " + var_type + " " + var_value)
+        d_print("\tFRAME\tsetVar\t" + var_name + " " + var_type + " " + repr(var_value))
         if self.defined:
             try:
                 self.types[self.vars.index(var_name)] = var_type
@@ -190,15 +190,14 @@ class Frame:
             d_print("FRAME getVarValByType - error accessing undefined frame")
             exit(ERR_NOTDEF_FR)
 
-    # debug print function, that prints all data stored in frame
-    # you need to have debug = True to make it work
+    # debug print function, that prints all data stored in frame to stderr
     def printAllFrame(self):
-        d_print("\tFRAME printAllFrame start")
-        for x in range(len(self.vars)):
-            d_print("\titem [" + str(x) + "] name  [" + self.vars[x] + "]")
-            d_print("\titem [" + str(x) + "] type  [" + self.types[x] + "]")
-            d_print("\titem [" + str(x) + "] value [" + self.values[x] + "]")
-        d_print("FRAME printAllFrame end")
+        print('  +---------------+---------------+-------------', file=sys.stderr)
+        print('  |name \t\t|type \t\t|value', file=sys.stderr)
+        print('  +---------------+---------------+-------------')
+        for i in range(len(self.vars)):
+            print('  |' + self.vars[i] + ' \t|' + self.types[i] + ' \t|' + self.values[i], file=sys.stderr)
+        print('  +---------------+---------------+-------------', file=sys.stderr)
 
 
 class VariableStorage:
@@ -263,7 +262,7 @@ class VariableStorage:
     # @param var_type is the type the variable will be set to
     # @param var_type is the value the variable will be set to
     def setVar(self, var_str, var_type, var_value):
-        d_print("\tDATAS\tsetVar\t" + var_str + " " + var_type + " " + var_value)
+        d_print("\tDATAS\tsetVar\t" + var_str + " " + var_type + " " + repr(var_value))
         checkNameVar(var_str)
         checkValueByType(var_type, var_value)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
@@ -324,11 +323,19 @@ class VariableStorage:
     # number of local frames in stack
     # you need debug = True to make it work
     def printStat(self):
-        d_print("DATAS printStat start\nGlobal Frame:")
+        print('', file=sys.stderr)
+        print('Content of frames :', file=sys.stderr)
+        print(' Global frame - table', file=sys.stderr)
         self.GlobalFrame.printAllFrame()
-        d_print("Temporary Frame:")
+        print('', file=sys.stderr)
+        print(' Temporary frame - table', file=sys.stderr)
         self.TemporaryFrame.printAllFrame()
-        d_print("Number of local frames :" + str(self.numLF + 1))
+        print('', file=sys.stderr)
+        print(' Local frames : ' + str(self.numLF + 1))
+        for i in range(self.numLF):
+            print(' Local frame - table' + str(i), file=sys.stderr)
+            self.LocalFrame[i].printAllFrame()
+        print('', file=sys.stderr)
 
 
 class StackStorage:
@@ -348,7 +355,7 @@ class StackStorage:
     # @param item_value is value of the item to be pushed
     # @param item_type is type of the item to be pushed
     def stackPush(self, item_value, item_type):
-        d_print("\tSTAKS\tstackPush\t" + item_value + " " + item_type)
+        d_print("\tSTAKS\tstackPush\t" + item_value + " " + repr(item_type))
         checkValueByType(item_type, item_value)
         self.valueArray.append(item_value)
         self.typeArray.append(item_type)
@@ -433,7 +440,7 @@ class LabelStorage:
         exit(ERR_SEMFAULT)
 
 
-class FileProcessor:
+class FileProcessor:  # ------------------------------------------------------------- extension STATI TODO
     # stores, loads, sets and translates files needed for interpret
     # array code is array of lines of IPPcode20 and one line is array of words in IPPcode20
     # also it handles interpret arguments
@@ -552,6 +559,12 @@ class FileProcessor:
                         if arg_text is None:
                             self.code[ins_order - 1].append(arg_type + '@')
                         elif checkValueByType(arg_type, arg_text):
+                            # arg_text = bytes(arg_text, 'utf-8').decode('unicode_escape').encode()
+                            for j, sub in enumerate(arg_text.split("\\")):
+                                if j == 0:
+                                    arg_text = sub
+                                else:
+                                    arg_text = arg_text + chr(int(sub[0:3])) + sub[3:]
                             self.code[ins_order - 1].append(arg_type + '@' + arg_text)
                     elif arg_type == 'nil':
                         if arg_text == 'nil':
@@ -603,6 +616,8 @@ class Interpret:
     stack = StackStorage()
     ProgCounter = 0
     CallStack = []
+    ExecutedInstructions = 0
+    DefinedVars = 0
 
     def __init__(self):
         self.files = FileProcessor()
@@ -611,6 +626,8 @@ class Interpret:
         self.stack = StackStorage()
         self.ProgCounter = 0
         self.CallStack = []
+        self.ExecutedInstructions = 0
+        self.DefinedVars = 0
 
     # executes interpretation
     # @err all possible errors listed above
@@ -632,7 +649,7 @@ class Interpret:
                 self.variables.popLocFrame()
             elif line[0] == 'DEFVAR':  # DEFVAR <var>
                 # already done by checker - here just test
-                self.variables.getVarType(line[1])
+                self.DefinedVars += 1
             elif line[0] == 'CALL':  # CALL <label>
                 self.CallStack.append(self.ProgCounter + 1)
                 self.ProgCounter = self.labels.getLabelLine(line[1])
@@ -750,11 +767,16 @@ class Interpret:
                 symb = self.getSymbolValue(line[1])
                 print(symb, file=sys.stderr)
             elif line[0] == 'BREAK':  # BREAK
-                # printing of statistics ------------------------------------------------------------------- TODO
-                hello = True
+                print('', file=sys.stderr)
+                print('++ BREAK INTERPRET STATUS ++', file=sys.stderr)
+                print('', file=sys.stderr)
+                print('num of completed instructions : ' + str(self.ExecutedInstructions), file=sys.stderr)
+                print('num of defined variables : ' + str(self.DefinedVars), file=sys.stderr)
+                self.variables.printStat()
             else:
                 d_print("INTE execute - error unknown opcode " + line[0])
                 exit(ERR_INTERNAL)
+            self.ExecutedInstructions += 1
             self.ProgCounter += 1
         exit(ERR_OK)
 
@@ -765,7 +787,7 @@ class Interpret:
         for i in range(self.files.getLenCode()):
             line = self.files.getLineCode(i)
             if (line[0] == 'LABEL') & (len(line) == 2):
-                d_print("setting label " + line[1] + " at line " + str(i))
+                d_print("setting label '" + line[1] + "' at line :" + str(i))
                 self.labels.addLabel(line[1], i)
 
     # checks if line of code matches the rules writen in the rule table above
@@ -813,13 +835,13 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol type if successful
     def getSymbolType(self, symbol_string):
-        d_print("\tINTE\tgetSymbolType\t" + symbol_string)
+        d_print("\tINTE\tgetSymbolType\t" + repr(symbol_string))
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
             return self.variables.getVarType(symbol_string)
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
-        elif re.match(r'^string@$', symbol_string):
+        elif re.match(r'^string@[\w\s]*$', symbol_string):
             return 'string'
         else:
             d_print("INTE getSymbolType - error not a symbol " + symbol_string)
@@ -831,14 +853,19 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol value if successful
     def getSymbolValue(self, symbol_string):
-        d_print("\tINTE\tgetSymbolValue\t" + symbol_string)
+        d_print("\tINTE\tgetSymbolValue\t" + repr(symbol_string))
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
             return self.variables.getVarVal(symbol_string)
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[2]
-        elif re.match(r'^string@$', symbol_string):
+        elif re.match(r'^string@\n$', symbol_string) is not None:
+            return '\n'
+        elif re.match(r'^string@$', symbol_string) is not None:
             return ''
+        elif re.match(r'^string@[\w\s]*$', symbol_string) is not None:
+            symbol = re.match(r'^string@([\w\s]*)$', symbol_string)
+            return symbol[1]
         else:
             d_print("INTE getSymbolValue - error not a symbol")
             exit(ERR_STRUCT_XML)
@@ -850,7 +877,7 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol value if successful
     def getSymbolValueByType(self, symbol_string, symbol_type):
-        d_print("\tINTE\tgetSymbolValueByType\t" + symbol_string + " " + symbol_type)
+        d_print("\tINTE\tgetSymbolValueByType\t" + repr(symbol_string) + " " + symbol_type)
         if symbol_type == self.getSymbolType(symbol_string):
             return self.getSymbolValue(symbol_string)
         else:
@@ -1061,7 +1088,7 @@ def checkType(type_str):
 # @param value_str is string of the value to be checked
 # @return True if successful
 def checkValueByType(type_str, value_str):
-    d_print("\tOUTF\tcheckValueByType\t" + str(type_str) + " " + str(value_str))
+    d_print("\tOUTF\tcheckValueByType\t" + str(type_str) + " " + repr(value_str))
     checkType(type_str)
     if type_str == 'int':
         if re.match(r'^\d+$', value_str) is not None:
