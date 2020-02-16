@@ -10,6 +10,7 @@
       <w>debuging</w>
       <w>defvar</w>
       <w>dprint</w>
+      <w>ifile</w>
       <w>insts</w>
       <w>inte</w>
       <w>jumpifeq</w>
@@ -32,6 +33,7 @@
       <w>setchar</w>
       <w>staks</w>
       <w>stas</w>
+      <w>stati</w>
       <w>stdin</w>
       <w>strfault</w>
       <w>stri</w>

@@ -440,7 +440,7 @@ class LabelStorage:
         exit(ERR_SEMFAULT)
 
 
-class FileProcessor:  # ------------------------------------------------------------- extension STATI TODO
+class FileProcessor:
     # stores, loads, sets and translates files needed for interpret
     # array code is array of lines of IPPcode20 and one line is array of words in IPPcode20
     # also it handles interpret arguments
@@ -588,6 +588,26 @@ class FileProcessor:  # --------------------------------------------------------
     def getLenCode(self):
         d_print("\tFILES\tgetLenCode")
         return len(self.code)
+
+    # makes file for stati expansion
+    # @param num_var is num of defined variables during execution
+    # @param num_inst is num of executed instructions during execution
+    def makeSTATIfile(self, num_var, num_inst):
+        if self.args.stats is not None:
+            try:
+                stati_handle = open(self.args.stats, 'w', encoding='UTF-8')
+                if (self.args.insts is not None) | (self.args.vars is not None):
+                    for word in sys.argv:
+                        if word == '--vars':
+                            print(str(num_var), file=stati_handle)
+                        elif word == '--insts':
+                            print(str(num_inst), file=stati_handle)
+                else:
+                    d_print("FILES setHandles - error bad arguments")
+                    exit(ERR_PARAM)
+            except OSError:
+                d_print("FILES makeSTATIfile - error file could not be opened")
+                exit(ERR_IN_FILES)
 
     # debug function printing array of code
     # variable debug need to be True to make it work
@@ -778,6 +798,7 @@ class Interpret:
                 exit(ERR_INTERNAL)
             self.ExecutedInstructions += 1
             self.ProgCounter += 1
+        self.files.makeSTATIfile(self.DefinedVars, self.ExecutedInstructions)
         exit(ERR_OK)
 
     # scans code for labels and sets them into label storage
