@@ -632,6 +632,10 @@ class FileProcessor:
         for i in self.code:
             d_print(i)
 
+    # returns one line from input
+    def readInput(self):
+        return self.inFileHandle.readline()
+
     # debug function that prints input in source handle
     # variable debug need to be True to make it work
     def printFiles(self):
@@ -724,16 +728,34 @@ class Interpret:
                 except ValueError:
                     d_print("INTE execute - error INT2CHAR bad integer")
                     exit(ERR_STRFAULT)
-            elif line[0] == 'STRI2INT':  # STRI2INT <var> <symb1> <symb2>
-                symb1 = self.getSymbolValueByType(line[2], 'string')
-                symb2 = self.getSymbolValueByType(line[3], 'int')
+            elif line[0] == 'INT2CHARS':  # INT2CHARS
+                symb = self.stack.stackPopValueByType('int')
+                try:
+                    self.stack.stackPush(chr(int(symb)), 'string')
+                except ValueError:
+                    d_print("INTE execute - error INT2CHARS bad integer")
+                    exit(ERR_STRFAULT)
+            elif (line[0] == 'STRI2INT') | (line[0] == 'STRI2INTS'):
+                # STRI2INT <var> <symb1> <symb2>   STRI2INTS
+                if line[0] == 'STRI2INT':
+                    symb1 = self.getSymbolValueByType(line[2], 'string')
+                    symb2 = self.getSymbolValueByType(line[3], 'int')
+                else:
+                    symb2 = self.stack.stackPopValueByType('int')
+                    symb1 = self.stack.stackPopValueByType('string')
                 if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) < int(symb2)):
                     d_print("INTE execute - error STRI2INT bad integer argument")
                     exit(ERR_STRFAULT)
-                self.variables.setVar(line[1], 'int', int(symb1[int(symb2)]))
+                if line[0] == 'STRI2INT':
+                    self.variables.setVar(line[1], 'int', int(symb1[int(symb2)]))
+                else:
+                    self.stack.stackPush(int(symb1[int(symb2)]), 'int')
             elif line[0] == 'READ':  # READ <var> <type>
-                # not sure what to do yet ----------------------------------------------------------------- TODO
-                print(':/')
+                line_type = line[2]
+                if (line_type != 'int') & (line_type != 'bool') & (line_type != 'string'):
+                    d_print('INTE execute - error bad READ type')
+                    exit(ERR_STRUCT_XML)
+                self.variables.setVar(line[1], line_type, self.files.readInput())
             elif line[0] == 'WRITE':  # WRITE <symb>
                 symbtype = self.getSymbolType(line[1])
                 symbval = self.getSymbolValue(line[1])
@@ -773,11 +795,18 @@ class Interpret:
                 self.labels.getLabelLine(line[1])
             elif line[0] == 'JUMP':  # JUMP <label>
                 self.ProgCounter = self.labels.getLabelLine(line[1])
-            elif line[0] == 'JUMPIFEQ':  # JUMPIFEQ <label> <symb1> <symb2>
-                symb1type = self.getSymbolType(line[2])
-                symb2type = self.getSymbolType(line[3])
-                symb1val = self.getSymbolValue(line[2])
-                symb2val = self.getSymbolValue(line[3])
+            elif (line[0] == 'JUMPIFEQ') | (line[0] == 'JUMPIFEQS'):
+                # JUMPIFEQ <label> <symb1> <symb2>   JUMPIFEQS
+                if line[0] == 'JUMPIFEQ':
+                    symb1type = self.getSymbolType(line[2])
+                    symb2type = self.getSymbolType(line[3])
+                    symb1val = self.getSymbolValue(line[2])
+                    symb2val = self.getSymbolValue(line[3])
+                else:
+                    symb2type = self.stack.stackTopType()
+                    symb2val = self.stack.stackPopValue()
+                    symb1type = self.stack.stackTopType()
+                    symb1val = self.stack.stackPopValue()
                 if symb1type == symb2type:
                     if symb1val == symb2val:
                         self.ProgCounter = self.labels.getLabelLine(line[1])
@@ -785,11 +814,18 @@ class Interpret:
                     d_print("INTE execute - error JUMPIFEQ bad argument types  [" + str(symb1type) + "] [" + str(
                         symb2type) + "]")
                     exit(ERR_BADTYPE_OP)
-            elif line[0] == 'JUMPIFNEQ':  # JUMPIFNEQ <label> <symb1> <symb2>
-                symb1type = self.getSymbolType(line[2])
-                symb2type = self.getSymbolType(line[3])
-                symb1val = self.getSymbolValue(line[2])
-                symb2val = self.getSymbolValue(line[3])
+            elif (line[0] == 'JUMPIFNEQ') | (line[0] == 'JUMPIFNEQS'):
+                # JUMPIFNEQ <label> <symb1> <symb2>    JUMPIFNEQS
+                if line[0] == 'JUMPIFNEQ':
+                    symb1type = self.getSymbolType(line[2])
+                    symb2type = self.getSymbolType(line[3])
+                    symb1val = self.getSymbolValue(line[2])
+                    symb2val = self.getSymbolValue(line[3])
+                else:
+                    symb2type = self.stack.stackTopType()
+                    symb2val = self.stack.stackPopValue()
+                    symb1type = self.stack.stackTopType()
+                    symb1val = self.stack.stackPopValue()
                 if symb1type == symb2type:
                     if symb1val != symb2val:
                         self.ProgCounter = self.labels.getLabelLine(line[1])

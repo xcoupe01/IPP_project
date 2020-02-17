@@ -20,6 +20,22 @@ $rules=[ //base functions
         //data stack
         'PUSHS'       =>['params'=>['symb']],
         'POPS'        =>['params'=>['var']],
+        //STACK extension
+        'CLEARS'      =>['params'=>[]],
+        'ADDS'        =>['params'=>[]],
+        'SUBS'        =>['params'=>[]],
+        'MULS'        =>['params'=>[]],
+        'IDIVS'       =>['params'=>[]],
+        'LTS'         =>['params'=>[]],
+        'GTS'         =>['params'=>[]],
+        'EQS'         =>['params'=>[]],
+        'ANDS'        =>['params'=>[]],
+        'ORS'         =>['params'=>[]],
+        'NOTS'        =>['params'=>[]],
+        'INT2CHARS'   =>['params'=>[]],
+        'STRI2INTS'   =>['params'=>[]],
+        'JUMPIFEQS'   =>['params'=>['label']],
+        'JUMPIFNEQS'  =>['params'=>['label']],
         //arithmetic operations, bool operation and conversion
         'ADD'         =>['params'=>['var','symb','symb']],
         'SUB'         =>['params'=>['var','symb','symb']],
