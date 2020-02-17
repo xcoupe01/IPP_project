@@ -10,14 +10,19 @@
       <w>debuging</w>
       <w>defvar</w>
       <w>dprint</w>
+      <w>idivs</w>
       <w>ifile</w>
       <w>insts</w>
       <w>inte</w>
       <w>jumpifeq</w>
+      <w>jumpifeqs</w>
       <w>jumpifneq</w>
+      <w>jumpifneqs</w>
       <w>labls</w>
+      <w>muls</w>
       <w>nonexisting</w>
       <w>notdef</w>
+      <w>nots</w>
       <w>noval</w>
       <w>opcode</w>
       <w>outf</w>

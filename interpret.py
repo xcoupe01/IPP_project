@@ -37,6 +37,22 @@ rules = [
     # stack operations
     ['PUSHS', 'symb'],
     ['POPS', 'var'],
+    # STACK extension
+    ['CLEARS'],
+    ['ADDS'],
+    ['SUBS'],
+    ['MULS'],
+    ['IDIVS'],
+    ['LTS'],
+    ['GTS'],
+    ['EQS'],
+    ['ANDS'],
+    ['ORS'],
+    ['NOTS'],
+    ['INT2CHARS'],
+    ['STRI2INTS'],
+    ['JUMPIFEQS', 'label'],
+    ['JUMPIFNEQS', 'label'],
     # arithmetical operations, logical operation, conversions
     ['ADD', 'var', 'symb', 'symb'],
     ['SUB', 'var', 'symb', 'symb'],
@@ -683,21 +699,24 @@ class Interpret:
                 self.stack.stackPush(self.getSymbolValue(line[1]), self.getSymbolType(line[1]))
             elif line[0] == 'POPS':  # POPS <var>
                 self.variables.setVar(line[1], self.stack.stackTopType(), self.stack.stackPopValue())
-            elif (line[0] == 'ADD') | (line[0] == 'SUB') | (line[0] == 'MUL') | (line[0] == 'IDIV'):
-                # ADD <var> <symb1> <symb2>
-                # SUB <var> <symb1> <symb2>
-                # MUL <var> <symb1> <symb2>
-                # IDIV <var> <symb1 <symb2>
+            elif (line[0] == 'ADD') | (line[0] == 'SUB') | (line[0] == 'MUL') | (line[0] == 'IDIV') | \
+                    (line[0] == 'ADDS') | (line[0] == 'SUBS') | (line[0] == 'MULS') | (line[0] == 'IDIVS'):
+                # ADD <var> <symb1> <symb2>       ADDS
+                # SUB <var> <symb1> <symb2>       SUBS
+                # MUL <var> <symb1> <symb2>       MULS
+                # IDIV <var> <symb1 <symb2>       IDIVS
                 self.doArithmetic(line)
-            elif (line[0] == 'LT') | (line[0] == 'GT') | (line[0] == 'EQ'):
-                # LT <var> <symb1> <symb2>
-                # GT <var> <symb1> <symb2>
-                # EQ <var> <symb1> <symb2>
+            elif (line[0] == 'LT') | (line[0] == 'GT') | (line[0] == 'EQ') | \
+                    (line[0] == 'LTS') | (line[0] == 'GTS') | (line[0] == 'EQS'):
+                # LT <var> <symb1> <symb2>        LTS
+                # GT <var> <symb1> <symb2>        GTS
+                # EQ <var> <symb1> <symb2>        EQS
                 self.doCompare(line)
-            elif (line[0] == 'AND') | (line[0] == 'OR') | (line[0] == 'NOT'):
-                # AND <var> <symb1> <symb2>
-                # OR <var> <symb1 <symb2>
-                # NOT <var> <symb>
+            elif (line[0] == 'AND') | (line[0] == 'OR') | (line[0] == 'NOT') | \
+                    (line[0] == 'ANDS') | (line[0] == 'ORS') | (line[0] == 'NOTS'):
+                # AND <var> <symb1> <symb2>       ANDS
+                # OR <var> <symb1 <symb2>         ORS
+                # NOT <var> <symb>                NOTS
                 self.doLogic(line)
             elif line[0] == 'INT2CHAR':  # INT2CHAR <var> <symb>
                 try:
@@ -793,6 +812,8 @@ class Interpret:
                 print('num of completed instructions : ' + str(self.ExecutedInstructions), file=sys.stderr)
                 print('num of defined variables : ' + str(self.DefinedVars), file=sys.stderr)
                 self.variables.printStat()
+            elif line[0] == 'CLEARS':  # CLEARS
+                self.stack = StackStorage()
             else:
                 d_print("INTE execute - error unknown opcode " + line[0])
                 exit(ERR_INTERNAL)
@@ -906,112 +927,210 @@ class Interpret:
             exit(ERR_BADTYPE_OP)
 
     # executes arithmetical operations based of the code line
+    # can operate on line (from symbols) or from stack (opcodes ending with S)
     # @err when dividing by zero
     # @err when symbols are not integers
     # @param  line_array is the line of code split into array by words
     def doArithmetic(self, line_array):
         d_print("\tINTE\tdoArithmetic\t" + line_array)
         arithmetic_type = line_array[0]
-        symbol1val = self.getSymbolValueByType(line_array[2], 'int')
-        symbol2val = self.getSymbolValueByType(line_array[3], 'int')
+        if (arithmetic_type == 'ADDS') | (arithmetic_type == 'SUBS') | \
+                (arithmetic_type == 'MULS') | (arithmetic_type == 'IDIVS'):
+            symbol1val = self.stack.stackPopValueByType('int')
+            symbol2val = self.stack.stackPopValueByType('int')
+        else:
+            symbol1val = self.getSymbolValueByType(line_array[2], 'int')
+            symbol2val = self.getSymbolValueByType(line_array[3], 'int')
         if arithmetic_type == 'ADD':
             self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+        elif arithmetic_type == 'ADDS':
+            self.stack.stackPush(str(int(symbol1val) + int(symbol2val)), 'int')
         elif arithmetic_type == 'SUB':
             self.variables.setVar(line_array[1], 'int', str(int(symbol1val) - int(symbol2val)))
+        elif arithmetic_type == 'SUBS':
+            self.stack.stackPush(str(int(symbol1val) - int(symbol2val)), 'int')
         elif arithmetic_type == 'MUL':
             self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+        elif arithmetic_type == 'MULS':
+            self.stack.stackPush(str(int(symbol1val) * int(symbol2val)), 'int')
         elif arithmetic_type == 'IDIV':
             if symbol2val != '0':
                 self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
+        elif arithmetic_type == 'IDIVS':
+            if symbol2val != '0':
+                self.stack.stackPush(str(int(symbol1val) / int(symbol2val)), 'int')
+            else:
+                d_print("INTE doArithmeticStack - error zero division")
+                exit(ERR_BADVAL_OP)
         else:
             d_print("INTE doArithmetic - error unknown operator")
             exit(ERR_INTERNAL)
 
     # executes comparision operations based of the code line
+    # can operate from line (variables and constants) or with stack (variants with S)
     # @err when the operand is nor EQ and nil type occurs
     # @err when writing to undefined variable
     # @param line_array is the line of code split into array by words
     def doCompare(self, line_array):
         d_print("\tINTE\tdoCompare\t" + line_array)
         comparision_type = line_array[0]
-        if (self.getSymbolType(line_array[2]) == 'nil') | (self.getSymbolType(line_array[3]) == 'nil'):
-            if comparision_type == 'EQ':
-                if self.getSymbolType(line_array[2]) == self.getSymbolType(line_array[3]):
+        if (comparision_type == 'EQS') | (comparision_type == 'GTS') | (comparision_type == 'LTS'):
+            symb2type = self.stack.stackTopType()
+            symb2value = self.stack.stackPopValue()
+            symb1type = self.stack.stackTopType()
+            symb1value = self.stack.stackPopValue()
+        else:
+            symb1type = self.getSymbolType(line_array[2])
+            symb1value = self.getSymbolValue(line_array[2])
+            symb2type = self.getSymbolType(line_array[3])
+            symb2value = self.getSymbolValue(line_array[3])
+        if (symb1type == 'nil') | (symb2type == 'nil'):
+            if symb1type == symb2type:
+                if comparision_type == 'EQ':
                     self.variables.setVar(line_array[1], 'bool', 'true')
+                elif comparision_type == 'EQS':
+                    self.stack.stackPush('true', 'bool')
                 else:
-                    self.variables.setVar(line_array[1], 'bool', 'false')
+                    d_print("INTE doCompare - error bad nil comparision")
+                    exit(ERR_BADTYPE_OP)
             else:
-                d_print("INTE doCompare - error bad nil comparision")
-                exit(ERR_BADTYPE_OP)
-        elif self.getSymbolType(line_array[2]) == self.getSymbolType(line_array[3]):
-            symbolstype = self.getSymbolType(line_array[2])
-            symbol1val = self.getSymbolValue(line_array[2])
-            symbol2val = self.getSymbolValue(line_array[3])
-            if symbolstype == 'int':
                 if comparision_type == 'EQ':
-                    if int(symbol1val) == int(symbol2val):
-                        self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
-                        self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'LT':
-                    if int(symbol1val) < int(symbol2val):
-                        self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
-                        self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'GT':
-                    if int(symbol1val) > int(symbol2val):
-                        self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
-                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    self.variables.setVar(line_array[1], 'bool', 'false')
+                elif comparision_type == 'EQS':
+                    self.stack.stackPush('false', 'bool')
                 else:
-                    d_print("INTE doCompare - error unknown comparision operator")
-                    exit(ERR_INTERNAL)
-            elif symbolstype == 'bool':
-                if comparision_type == 'EQ':
-                    if symbol1val == symbol2val:
+                    d_print("INTE doCompare - error bad nil comparision")
+                    exit(ERR_BADTYPE_OP)
+        elif symb1type == symb2type:
+            if symb1type == 'int':
+                if int(symb1value) == int(symb2value):
+                    if comparision_type == 'EQ':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'LT':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'LT':
-                    if (symbol1val == 'false') & (symbol2val == 'true'):
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+                elif int(symb1value) > int(symb2value):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('true', 'bool')
+                elif int(symb1value) < int(symb2value):
+                    if comparision_type == 'EQ':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'GT':
-                    if (symbol1val == 'true') & (symbol2val == 'false'):
+                    elif comparision_type == 'LT':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'GT':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                else:
-                    d_print("INTE doCompare - error unknown comparsion operator")
-                    exit(ERR_INTERNAL)
-            elif symbolstype == 'string':
-                if comparision_type == 'EQ':
-                    if symbol1val == symbol2val:
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+            elif symb1type == 'string':
+                if symb1value == symb2value:
+                    if comparision_type == 'EQ':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'LT':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'LT':
-                    if symbol1val < symbol2val:
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+                elif symb1value > symb2value:
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('true', 'bool')
+                elif symb1value < symb2value:
+                    if comparision_type == 'EQ':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                elif comparision_type == 'GT':
-                    if symbol1val > symbol2val:
+                    elif comparision_type == 'LT':
                         self.variables.setVar(line_array[1], 'bool', 'true')
-                    else:
+                    elif comparision_type == 'GT':
                         self.variables.setVar(line_array[1], 'bool', 'false')
-                else:
-                    d_print("INTE doCompare - error unknown comparsion operator")
-                    exit(ERR_INTERNAL)
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+            elif symb1type == 'bool':
+                if symb1value == symb2value:
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+                elif (symb1value == 'true') & (symb2value == 'false'):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+                elif (symb1value == 'false') & (symb2value == 'true'):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
         else:
             d_print("INTE doCompare - error types not matching")
             exit(ERR_BADTYPE_OP)
 
     # executes logic operations
+    # can operate from line (with constants and variables) or with stack (variants with S)
     # @param line_array is the line of code split into array by words
     def doLogic(self, line_array):
         d_print("\tINTE\tdoLogic\t" + line_array)
@@ -1025,7 +1144,16 @@ class Interpret:
             else:
                 d_print("INTE doLogic - error unknown value")
                 exit(ERR_INTERNAL)
-        else:
+        elif logic_op == 'NOTS':
+            symbol = self.stack.stackPopValueByType('bool')
+            if symbol == 'true':
+                self.stack.stackPush('false', 'bool')
+            elif symbol == 'false':
+                self.stack.stackPush('true', 'bool')
+            else:
+                d_print("INTE doLogic - error unknown value")
+                exit(ERR_INTERNAL)
+        elif (logic_op == 'AND') | (logic_op == 'OR'):
             symbol1 = self.getSymbolValueByType(line_array[2], 'bool')
             symbol2 = self.getSymbolValueByType(line_array[3], 'bool')
             if logic_op == 'AND':
@@ -1038,9 +1166,22 @@ class Interpret:
                     self.variables.setVar(line_array[1], 'bool', 'true')
                 else:
                     self.variables.setVar(line_array[1], 'bool', 'false')
-            else:
-                d_print("INTE doLogic - error logic operator")
-                exit(ERR_INTERNAL)
+        elif (logic_op == 'ANDS') | (logic_op == 'ORS'):
+            symbol1 = self.stack.stackPopValueByType('bool')
+            symbol2 = self.stack.stackPopValueByType('bool')
+            if logic_op == 'ANDS':
+                if (symbol1 == 'true') & (symbol2 == 'true'):
+                    self.stack.stackPush('true', 'bool')
+                else:
+                    self.stack.stackPush('false', 'bool')
+            elif logic_op == 'ORS':
+                if (symbol1 == 'true') | (symbol2 == 'true'):
+                    self.stack.stackPush('true', 'bool')
+                else:
+                    self.stack.stackPush('false', 'bool')
+        else:
+            d_print("INTE doLogic - error logic operator")
+            exit(ERR_INTERNAL)
 
 
 # --- functions ---
