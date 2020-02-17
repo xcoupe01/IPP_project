@@ -25,6 +25,7 @@ $rules=[ //base functions
         'ADDS'        =>['params'=>[]],
         'SUBS'        =>['params'=>[]],
         'MULS'        =>['params'=>[]],
+        'DIVS'        =>['params'=>[]],
         'IDIVS'       =>['params'=>[]],
         'LTS'         =>['params'=>[]],
         'GTS'         =>['params'=>[]],
@@ -32,6 +33,8 @@ $rules=[ //base functions
         'ANDS'        =>['params'=>[]],
         'ORS'         =>['params'=>[]],
         'NOTS'        =>['params'=>[]],
+        'INT2FLOATS'  =>['params'=>[]],
+        'FLOAT2INTS'  =>['params'=>[]],
         'INT2CHARS'   =>['params'=>[]],
         'STRI2INTS'   =>['params'=>[]],
         'JUMPIFEQS'   =>['params'=>['label']],
@@ -40,6 +43,7 @@ $rules=[ //base functions
         'ADD'         =>['params'=>['var','symb','symb']],
         'SUB'         =>['params'=>['var','symb','symb']],
         'MUL'         =>['params'=>['var','symb','symb']],
+        'DIV'         =>['params'=>['var','symb','symb']],
         'IDIV'        =>['params'=>['var','symb','symb']],
         'LT'          =>['params'=>['var','symb','symb']],
         'GT'          =>['params'=>['var','symb','symb']],
@@ -47,6 +51,8 @@ $rules=[ //base functions
         'AND'         =>['params'=>['var','symb','symb']],
         'OR'          =>['params'=>['var','symb','symb']],
         'NOT'         =>['params'=>['var','symb','symb']],
+        'INT2FLOAT'   =>['params'=>['var','symb']],
+        'FLOAT2INT'   =>['params'=>['var','symb']],
         'INT2CHAR'    =>['params'=>['var','symb']],
         'STRI2INT'    =>['params'=>['var','symb','symb']],
         //input output instructions
@@ -130,7 +136,7 @@ function symbCheck($str){
       //i am constant
       switch($prefix){
         case "int" :
-          if(preg_match("/^\d+$/", $name) || preg_match("/^-\d+$/", $name)){
+          if(preg_match("/^[-]?\d+$/", $name)){
             decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
             return "int";
           }
@@ -158,12 +164,18 @@ function symbCheck($str){
           decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
           return "string";
           break;
-        case "nil" :
+        case "nil":
           if($name == "nil"){
             decho(" symbCheck     \e[33mIS SYMBOL\e[0m [$str]\n");
             return "nil";
+          break;
           }
           break;
+        case "float":
+          if(preg_match("/^[+-]?0x[0-9abcde]+\.[0-9abcde]+p[+-]?[0-9]+$/", $name)){
+            decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
+            return "int";
+          }
       }
     }
   }

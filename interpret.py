@@ -66,6 +66,10 @@ rules = [
     ['NOT', 'var', 'symb'],
     ['INT2CHAR', 'var', 'symb'],
     ['STRI2INT', 'var', 'symb', 'symb'],
+    ['INT2FLOAT', 'var', 'symb'],
+    ['FLOAT2INT', 'var', 'symb'],
+    ['DIV', 'var', 'symb', 'symb'],
+    ['DIVS'],
     # input output operations
     ['READ', 'var', 'type'],
     ['WRITE', 'symb'],
@@ -571,6 +575,9 @@ class FileProcessor:
                     elif arg_type == 'bool':
                         if (arg_text == 'true') | (arg_text == 'false'):
                             self.code[ins_order - 1].append(arg_type + '@' + arg_text)
+                        else:
+                            d_print("FILES xmlTranslate - err bad bool type")
+                            exit(ERR_STRUCT_XML)
                     elif arg_type == 'string':
                         if arg_text is None:
                             self.code[ins_order - 1].append(arg_type + '@')
@@ -585,6 +592,14 @@ class FileProcessor:
                     elif arg_type == 'nil':
                         if arg_text == 'nil':
                             self.code[ins_order - 1].append(arg_type + '@' + arg_text)
+                        else:
+                            d_print("FILES xmlTranslate - err bad nil type")
+                    elif arg_type == 'float':
+                        if re.match(r'^[+-]?0x[0-9abcde]+\.[0-9abcde]+p[+-]?[0-9]+$', arg_text):
+                            self.code[ins_order - 1].append(arg_type + '@' + str(float.fromhex(arg_text)))
+                        else:
+                            d_print("FILES xmlTranslate - error bad float")
+                            exit(ERR_STRUCT_XML)
                     else:
                         d_print("FILES xmlTranslate - error unknown type")
                         exit(ERR_STRUCT_XML)
@@ -735,6 +750,20 @@ class Interpret:
                 except ValueError:
                     d_print("INTE execute - error INT2CHARS bad integer")
                     exit(ERR_STRFAULT)
+            elif (line[0] == 'INT2FLOAT') | (line[0] == 'INT2FLOATS'):
+                if line[0] == 'INT2FLOAT':
+                    symb = self.getSymbolValueByType(line[2], 'int')
+                    self.variables.setVar(line[1], float(int(symb)), 'float')
+                else:
+                    symb = self.stack.stackPopValueByType('int')
+                    self.stack.stackPush(float(int(symb)), 'float')
+            elif (line[0] == 'FLOAT2INT') | (line[0] == 'FLOAT2INTS'):
+                if line[0] == 'FLOAT2INT':
+                    symb = self.getSymbolValueByType(line[2], 'float')
+                    self.variables.setVar(line[1], int(float(symb)), 'int')
+                else:
+                    symb = self.stack.stackPopValueByType('int')
+                    self.stack.stackPush(int(float(symb)), 'float')
             elif (line[0] == 'STRI2INT') | (line[0] == 'STRI2INTS'):
                 # STRI2INT <var> <symb1> <symb2>   STRI2INTS
                 if line[0] == 'STRI2INT':
@@ -752,7 +781,8 @@ class Interpret:
                     self.stack.stackPush(int(symb1[int(symb2)]), 'int')
             elif line[0] == 'READ':  # READ <var> <type>
                 line_type = line[2]
-                if (line_type != 'int') & (line_type != 'bool') & (line_type != 'string'):
+                if (line_type != 'int') & (line_type != 'bool') & \
+                        (line_type != 'string') & (line_type == 'float'):
                     d_print('INTE execute - error bad READ type')
                     exit(ERR_STRUCT_XML)
                 self.variables.setVar(line[1], line_type, self.files.readInput())
@@ -789,7 +819,8 @@ class Interpret:
                 varvalue[int(symb1)] = symb2[0]
                 self.variables.setVar(line[1], 'string', varvalue)
             elif line[0] == 'TYPE':  # TYPE <var> <symb>
-                self.variables.setVar(line[1], 'string', self.getSymbolType(line[2]))
+                if checkType(self.getSymbolType(line[2])):
+                    self.variables.setVar(line[1], 'string', self.getSymbolType(line[2]))
             elif line[0] == 'LABEL':  # LABEL <label>
                 # already set by scan labels function
                 self.labels.getLabelLine(line[1])
@@ -832,6 +863,8 @@ class Interpret:
                 elif (symb1type != 'nil') & (symb2type != 'nil'):
                     d_print("INTE execute - error JUMPIFEQ bad argument types [" + symb1type + "] [" + symb2type + "]")
                     exit(ERR_BADTYPE_OP)
+                else:
+                    self.ProgCounter = self.labels.getLabelLine(line[1])
             elif line[0] == 'EXIT':  # EXIT <symb>
                 symb = self.getSymbolValueByType(line[1], 'int')
                 if (int(symb) >= 0) & (int(symb) <= 49):
@@ -972,11 +1005,13 @@ class Interpret:
         arithmetic_type = line_array[0]
         if (arithmetic_type == 'ADDS') | (arithmetic_type == 'SUBS') | \
                 (arithmetic_type == 'MULS') | (arithmetic_type == 'IDIVS'):
-            symbol1val = self.stack.stackPopValueByType('int')
-            symbol2val = self.stack.stackPopValueByType('int')
+            type_symb = self.stack.stackTopType()
+            symbol1val = self.stack.stackPopValueByType(type_symb)
+            symbol2val = self.stack.stackPopValueByType(type_symb)
         else:
-            symbol1val = self.getSymbolValueByType(line_array[2], 'int')
-            symbol2val = self.getSymbolValueByType(line_array[3], 'int')
+            type_symb = self.getSymbolType(line_array[2])
+            symbol1val = self.getSymbolValueByType(line_array[2], type_symb)
+            symbol2val = self.getSymbolValueByType(line_array[3], type_symb)
         if arithmetic_type == 'ADD':
             self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
         elif arithmetic_type == 'ADDS':
@@ -989,21 +1024,33 @@ class Interpret:
             self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
         elif arithmetic_type == 'MULS':
             self.stack.stackPush(str(int(symbol1val) * int(symbol2val)), 'int')
-        elif arithmetic_type == 'IDIV':
+        elif (arithmetic_type == 'IDIV') & (type_symb == 'int'):
             if symbol2val != '0':
                 self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
-        elif arithmetic_type == 'IDIVS':
+        elif (arithmetic_type == 'IDIVS') & (type_symb == 'int'):
             if symbol2val != '0':
                 self.stack.stackPush(str(int(symbol1val) / int(symbol2val)), 'int')
             else:
-                d_print("INTE doArithmeticStack - error zero division")
+                d_print("INTE doArithmetic - error zero division")
+                exit(ERR_BADVAL_OP)
+        elif (arithmetic_type == 'DIV') & (type_symb == 'float'):
+            if symbol2val != '0.0':
+                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) + float(symbol2val)))
+            else:
+                d_print("INTE doArithmetic - error zero division")
+                exit(ERR_BADVAL_OP)
+        elif (arithmetic_type == 'DIVS') & (type_symb == 'float'):
+            if symbol2val != '0.0':
+                self.stack.stackPush(str(float(symbol1val) / float(symbol2val)), 'float')
+            else:
+                d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
         else:
-            d_print("INTE doArithmetic - error unknown operator")
-            exit(ERR_INTERNAL)
+            d_print("INTE doArithmetic - error bad types")
+            exit(ERR_BADTYPE_OP)
 
     # executes comparision operations based of the code line
     # can operate from line (variables and constants) or with stack (variants with S)
@@ -1161,6 +1208,46 @@ class Interpret:
                         self.stack.stackPush('false', 'bool')
                     elif comparision_type == 'GTS':
                         self.stack.stackPush('false', 'bool')
+            if symb1type == 'float':
+                if float(symb1value) == float(symb2value):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
+                elif float(symb1value) > float(symb2value):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('true', 'bool')
+                elif float(symb1value) < float(symb2value):
+                    if comparision_type == 'EQ':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'LT':
+                        self.variables.setVar(line_array[1], 'bool', 'true')
+                    elif comparision_type == 'GT':
+                        self.variables.setVar(line_array[1], 'bool', 'false')
+                    elif comparision_type == 'EQS':
+                        self.stack.stackPush('false', 'bool')
+                    elif comparision_type == 'LTS':
+                        self.stack.stackPush('true', 'bool')
+                    elif comparision_type == 'GTS':
+                        self.stack.stackPush('false', 'bool')
         else:
             d_print("INTE doCompare - error types not matching")
             exit(ERR_BADTYPE_OP)
@@ -1272,7 +1359,7 @@ def checkLabelName(label_str):
 def checkType(type_str):
     d_print("\tOUTF\tcheckType\t" + str(type_str))
     if (type_str == 'int') | (type_str == 'string') | \
-            (type_str == 'bool') | (type_str == 'nil'):
+            (type_str == 'bool') | (type_str == 'nil') | (type_str == 'float'):
         return True
     else:
         d_print("OUTF checkType - error undefined type [" + str(type_str) + "]")
@@ -1289,12 +1376,16 @@ def checkValueByType(type_str, value_str):
     d_print("\tOUTF\tcheckValueByType\t" + str(type_str) + " " + repr(value_str))
     checkType(type_str)
     if type_str == 'int':
-        if re.match(r'^\d+$', value_str) is not None:
-            return True
-        elif re.match(r'^-\d+$', value_str) is not None:
+        if re.match(r'^[-]?\d+$', value_str) is not None:
             return True
         else:
             d_print("OUTF checkValueByType - error bad integer")
+            exit(ERR_STRUCT_XML)
+    elif type_str == 'float':
+        if re.match(r'^[-]?\d+\.\d+', value_str):
+            return True
+        else:
+            d_print("OUTF checkValueByType - error bad float")
             exit(ERR_STRUCT_XML)
     elif type_str == 'string':
         for ic in range(len(value_str)):
