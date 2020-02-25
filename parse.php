@@ -78,7 +78,7 @@ $rules=[ //base functions
 
 $state = ['numLoc'       => 0,                         //< num of lines with opcodes  --loc
           'numComments'  => 0,                         //< num of comments            --comments
-          'numLabels'    => 0,                         //< number of labels           --labels
+          'Labels'       => [],                        //< array of labels            --labels
           'numJumps'     => 0,                         //< num of jumps               --jumps
           'order'        =>[]];                        //< order in stat file
 
@@ -327,11 +327,20 @@ for($i; $i < count($input); $i++){
         $j++;
       }
       $outProgram->appendChild($outInstruction);
-      if($opcode == "JUMP" || $opcode == "JUMPIFEQ" || $opcode == "JUMPIFNEQ" || $opcode == "CALL"){
+      if($opcode == "JUMP" || $opcode == "JUMPIFEQ" || $opcode == "JUMPIFNEQ" || $opcode == "CALL" ||
+          $opcode == "JUMPIFEQS" || $opcode == "JUMPIFNEQS"){
         $state['numJumps'] ++;
       }
       if($opcode == "LABEL"){
-        $state['numLabels'] ++;
+        $addL = true;
+        foreach ($state['Labels'] as $value){
+          if($value == $m[1]){
+            $addL = false;
+          }
+        }
+        if($addL){
+          $state['Labels'].array_push($m[1]);
+        }
       }
     } else {
       //opcode not found in rules
@@ -382,8 +391,8 @@ if(count($argv) > 1){
         fprintf($handle, "%d\n", $state['numComments']);
         break;
       case "--labels":
-        fprintf($handle, "%d\n", $state['numLabels']);
-        break;
+        fprintf($handle, "%d\n", count($state['numLabels']));
+      break;
       case "--jumps":
         fprintf($handle, "%d\n", $state['numJumps']);
         break;

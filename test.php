@@ -1,6 +1,10 @@
 <?php
 
+// --- variables ---
+
 $debug = true;
+
+// --- functions ---
 
 /**
 * Prints debug info based on variable $debug
@@ -11,6 +15,7 @@ function decho($toprint){
   if($debug) echo $toprint;
 }
 
+// --- main ---
 
 $help = false;
 $directory = Null;
@@ -49,11 +54,19 @@ if($help){
         decho('Other argument with help');
         exit(10);
       } else {
-        print('help informations ...');
+        print('help information ...');
         exit(0);
       }
 }
-
+if($parser == Null){
+  $parser = 'parser.php';
+}
+if($interpret == Null){
+  $interpret = 'interpret.py';
+}
+if($jexam == Null){
+  $jexam = '/pub/courses/ipp/jexamxml/jexamxml.jar';
+}
 
 
 ?>
