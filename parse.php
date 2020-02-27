@@ -84,6 +84,7 @@ $state = ['numLoc'       => 0,                         //< num of lines with opc
 
 $output = new DOMDocument("1.0", "UTF-8"); //< output XML file that will be outputed if the whole input is correct
 $output->formatOutput = true;
+mb_internal_encoding("UTF-8");
 $outProgram = $output->createElement("program");
 $outProgram->setAttribute("language","IPPcode20");
 //----- used functions -----
@@ -339,7 +340,7 @@ for($i; $i < count($input); $i++){
           }
         }
         if($addL){
-          $state['Labels'].array_push($m[1]);
+          array_push($state['Labels'], $m[1]);
         }
       }
     } else {

@@ -2,7 +2,7 @@
 
 // --- variables ---
 
-$debug = true;
+$debug = false;
 $testlist = [];
 $help = false;
 $directory = Null;
@@ -31,6 +31,33 @@ function decho($toprint){
   if($debug) echo $toprint;
 }
 
+function ta($tagname, $content = '')
+{
+  if ($content == '') {
+    return '<' . $tagname . '/>';
+  }
+  if ($content == 'noslash') {
+    return '<' . $tagname . '>';
+  }
+  return '<' . $tagname . '>' . $content . '</' . $tagname . '>' . "\n";
+}
+
+function tg($tagname, $params = '', $content = '', $nopack = false)
+{
+  if ($params . $content == '') {
+    return '<' . $tagname . '/>';
+  }
+  if ($params != '') $params = ' ' . $params;
+  if ($content == 'noslash' && !$nopack) {
+    return '<' . $tagname . $params . '>';
+  }
+  if ($content == '' && !$nopack) {
+    return '<' . $tagname . $params . '/>' . "\n";
+  } else {
+    return '<' . $tagname . $params . '>' . $content . '</' . $tagname . '>' . "\n";
+  }
+}
+
 // --- main ---
 
 // dealing with args
@@ -39,7 +66,7 @@ foreach($argv as $i => $arg){
   if($arg == "--help"){
     $help = true;
   } elseif (preg_match("/^--directory=(.+)$/", $arg, $m)) {
-    if(is_file($m[1])){
+    if(is_dir($m[1])){
       $directory = $m[1];
     } else {
       decho(" PARAM \t\e[31mFAIL\e[0m is not a directory\n");
@@ -149,15 +176,15 @@ foreach($testlist as $test){
   exec("cat $test.src | php -f $parser", $ParOut, $ParRet);
   if(file_get_contents($test . '.rc') == $ParRet){ 
     if($ParRet > 0){
-      $result[$test] = 'RetOk' . $ParRet;
+      $results[$test] = 'OK';
     } else {
       // compare outputs with .out by jexamxml
       // a7soft integration ------------------------------------------------------ TODO
-      $result[$test] = 'DifOk';
-      $result[$test] = 'DifFail';
+      $results[$test] = 'OK';
+      $results[$test] = 'fail#' . 'Different script outputs: diff summary <br>' . $DifOut;
     }
   } else {
-    $result[$test] = 'RetFail' . $ParRet;
+    $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $ParRet . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
     // html fail
   }
  } elseif($intOnly){
@@ -165,37 +192,115 @@ foreach($testlist as $test){
   file_put_contents($test . '.tmp', $IntOut);
   if(file_get_contents($test . '.rc') == $IntRet){
     if($IntRet > 0){
-      $result[$test] = 'RetOk' . $IntRet;
+      $results[$test] = 'OK';
     } else {
       exec("diff $test.tmp $test.out", $DifOut, $DifRet);
       if($DifRet == 0){
-        $result[$test] = 'DifOk';
+        $results[$test] = 'OK';
       } else {
-        $result[$test] = 'DifFail'. $DifOut; 
+        $results[$test] = 'fail#'. 'Different script outputs: diff summary <br>'. $DifOut; 
       }
     }
   } else {
-    $result[$test] = 'RetFail' . $IntRet;
+    $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $IntRet . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
   }
+  unlink($test . '.tmp');
  } else {
-  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in", $Out, $Ret);
+  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in", $Out, $Ret); // not working --------------- TODO
   file_put_contents($test . '.tmp', $Out);
   if (file_get_contents($test . '.rc') == $Ret) {
     if ($Ret > 0) {
-      $result[$test] = 'RetOk' . $Ret;
+      $results[$test] = 'OK';
     } else {
       exec("diff $test.tmp $test.out", $DifOut, $DifRet);
       if ($DifRet == 0) {
-        $result[$test] = 'DifOk';
+        $results[$test] = 'OK';
       } else {
-        $result[$test] = 'DifFail' . $DifOut;
+        $results[$test] = 'fail#' . 'Different script outputs: diff summary <br>' . $DifOut;
       }
     }
   } else {
-    $result[$test] = 'RetFail' . $Ret;
+    $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $Ret . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
   }
+  unlink($test . '.tmp');
  }
 }
-print("hello world\n");
+/* Generovani HTML 5 vystupu */
+$o = ta('h1', 'Test results');
+$n = 0;
+$fails = 0;
+$success = 0;
+$o .= ta('br');
+$o .= ta('h3', 'test settings:');
+$o .= ta('ul');
+$o .= ta('li', "directory: ". realpath($directory));
+if($recursive){
+  $o .= ta('li', "recursive: &#128504;");
+} else {
+  $o .= ta('li', "recursive: &#128502;");
+}
+$o .= ta('li', "parse script: $parser");
+$o .= ta('li', "interpret script: $interpret");
+if($parseOnly){
+  $o .= ta('li', "parse only: &#128504;");
+} else {
+  $o .= ta('li', "parse only: &#128502;");
+}
+if($intOnly){
+  $o .= ta('li', "interpret only: &#128504;");
+} else {
+  $o .= ta('li', "interpret only: &#128502;");
+}
+$o .= ta('li', "JexamXML: $jexam");
+$o .= ta('br');
+foreach ($results as $k => $v) {
+  if (preg_match('/^(\w+)#(.+)$/', $v, $m)) {
+    $fails++;
+    $m[1] = str_replace('fail', '<b>&#128502;</b>', $m[1]);
+    $res = tg('td', 'width=5% align="middle" bgcolor=ff7373', $m[1]);
+    $dets = tg(
+      'td',
+      '',
+      tg('span', 'onclick="document.getElementById(\'ID' . $n . '\').style.display=(document.getElementById(\'ID' . $n . '\').style.display==\'block\')?\'none\':\'block\';" ', '<b>Details available</b>') .
+        tg('div', 'id="ID' . $n . '" style="display:none;"', $m[2])
+    );
+  } else {
+    $success++;
+    $v = str_replace('OK', '<b>&#128504;</b>', $v);
+    $res = tg('td', 'width=5% align="middle" bgcolor=9bff8a', $v);
+    $dets = ta('td', ' ');
+  }
+  $o .= ta('tr', tg('td', 'width=5% align="middle"', ++$n . $res . ta('td', $k)) . $dets);
+}
+$o = ta('table',/*ta('caption', 'string').*/ ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
+
+$o = ta(
+  'html',
+  ta(
+    'head',
+    tg('meta', 'http-equiv="Content-Type" content="text/html;" charset="utf-8"') .
+      ta('title', 'Test results') .
+      ta(
+        'style',
+        '
+body  {font-family: \'Arial CE\',arial; font-size: 10pt; background-color: #a3a3a3; margin: 20px; }
+table {border: solid #000000 1px;	background: white; border-collapse: collapse; width:100%;}
+table caption {background-color: #D4E5E3;	color: #6B6B77;
+font-weight: bold;	margin: 0px 0px 10px 0px;  border: solid #C5C5C4 1px;  padding: 5px;  text-align: center; }
+
+table thead {font-style: italic; background-color: #DADADA;	color: #6B6B6B;  border: solid #C5C5C4 1px;  padding: 5px;}
+table th {text-align: left;  border: solid #C5C5C4 1px; padding: 4px;  background-color: #DADADA;} 
+table tfoot {border: solid #C5C5C4 1px; background: #e0e0e0; }
+table tr {background-color: #FFF9F1;}
+table tr:hover, table tr.sudy:hover {background-color: #bababa;}
+table td {border: solid #000000 1px;  padding: 1px 4px 1px 4px;}
+table tbody td {color: black;  padding: 1px 4px 1px 4px;}
+table tr.zahlavi th {text-align: left;  border: solid #C5C5C4 1px; padding: 4px;  background-color: #DADADA;}
+'
+      )
+  ) .
+    ta('body', $o)
+);
+if(!$debug) echo '<!DOCTYPE html>' . "\n" . $o;
 exit(ERR_OK);
 ?>
