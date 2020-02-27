@@ -132,7 +132,7 @@ if ($parseOnly) {
 }
 if($parser == Null && !$intOnly){
   decho(" PARAM \e[33mWARN\e[0m Setting parser to default\n");
-  $parser = "parser.php";
+  $parser = "parse.php";
 }
 if($interpret == Null && !$parseOnly){
   decho(" PARAM \e[33mWARN\e[0m Setting interpret to default\n");
@@ -181,7 +181,7 @@ foreach($testlist as $test){
       // compare outputs with .out by jexamxml
       // a7soft integration ------------------------------------------------------ TODO
       $results[$test] = 'OK';
-      $results[$test] = 'fail#' . 'Different script outputs: diff summary <br>' . $DifOut;
+      $results[$test] = 'fail#' . 'Different script outputs: diff [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
     }
   } else {
     $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $ParRet . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
@@ -198,7 +198,7 @@ foreach($testlist as $test){
       if($DifRet == 0){
         $results[$test] = 'OK';
       } else {
-        $results[$test] = 'fail#'. 'Different script outputs: diff summary <br>'. $DifOut; 
+        $results[$test] = 'fail#'. 'Different script outputs: diff [script_output] [expected_output] <br>'. str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut))); 
       }
     }
   } else {
@@ -206,8 +206,8 @@ foreach($testlist as $test){
   }
   unlink($test . '.tmp');
  } else {
-  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in", $Out, $Ret); // not working --------------- TODO
-  file_put_contents($test . '.tmp', $Out);
+  decho("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in\n");
+  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in > $test.tmp", $Out, $Ret); // not working --------------- TODO
   if (file_get_contents($test . '.rc') == $Ret) {
     if ($Ret > 0) {
       $results[$test] = 'OK';
@@ -216,7 +216,7 @@ foreach($testlist as $test){
       if ($DifRet == 0) {
         $results[$test] = 'OK';
       } else {
-        $results[$test] = 'fail#' . 'Different script outputs: diff summary <br>' . $DifOut;
+        $results[$test] = 'fail#' . 'Different script outputs: diff [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
       }
     }
   } else {
@@ -226,7 +226,7 @@ foreach($testlist as $test){
  }
 }
 /* Generovani HTML 5 vystupu */
-$o = ta('h1', 'Test results');
+$o = ta('h1', 'Test results - ' . date("Y m.d. H:i:s"));
 $n = 0;
 $fails = 0;
 $success = 0;
@@ -262,7 +262,7 @@ foreach ($results as $k => $v) {
       'td',
       '',
       tg('span', 'onclick="document.getElementById(\'ID' . $n . '\').style.display=(document.getElementById(\'ID' . $n . '\').style.display==\'block\')?\'none\':\'block\';" ', '<b>Details available</b>') .
-        tg('div', 'id="ID' . $n . '" style="display:none;"', $m[2])
+        tg('div', 'id="ID' . $n . '" style="display:none;"', substr($v, strpos($v, '#') + 1))
     );
   } else {
     $success++;
