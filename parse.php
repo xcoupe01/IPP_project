@@ -243,6 +243,7 @@ for($i=0; $i < count($input); $i++){
 //looking for the header
 $i = 0; $go = true;
 do{
+  $input[$i] = trim($input[$i]);
   if($input[$i] == ""){
     $i ++;
   } elseif($input[$i] == ".IPPcode20"){

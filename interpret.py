@@ -803,12 +803,12 @@ class Interpret:
                 if (symb2 is not None) & (symb1 is not None):
                     self.variables.setVar(line[1], 'string', symb1 + symb2)
             elif line[0] == 'GETCHAR':  # GETCHAR <var> <symb1> <symb2>
-                symb1 = self.getSymbolValueByType(line[2], 'int')
-                symb2 = self.getSymbolValueByType(line[3], 'string')
-                if (re.match(r'^-\d+$', symb1) is not None) | (len(symb2) < int(symb1)):
+                symb1 = self.getSymbolValueByType(line[2], 'string')
+                symb2 = self.getSymbolValueByType(line[3], 'int')
+                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) < int(symb2)):
                     d_print("INTE execute - error GETCHAR bad integer argument")
                     exit(ERR_STRFAULT)
-                self.variables.setVar(line[1], 'string', symb2[int(symb1)])
+                self.variables.setVar(line[1], 'string', symb1[int(symb2)])
             elif line[0] == 'SETCHAR':  # SETCHAR <var> <symb1> <symb2>
                 varvalue = self.variables.getVarValByType(line[1], 'string')
                 symb1 = self.getSymbolValueByType(line[2], 'int')
@@ -952,7 +952,7 @@ class Interpret:
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
-        elif re.match(r'^string@[\w\s]*$', symbol_string):
+        elif re.match(r'^string@.*$', symbol_string):
             return 'string'
         else:
             d_print("INTE getSymbolType - error not a symbol " + symbol_string)
@@ -974,8 +974,8 @@ class Interpret:
             return '\n'
         elif re.match(r'^string@$', symbol_string) is not None:
             return ''
-        elif re.match(r'^string@[\w\s]*$', symbol_string) is not None:
-            symbol = re.match(r'^string@([\w\s]*)$', symbol_string)
+        elif re.match(r'^string@.*$', symbol_string) is not None:
+            symbol = re.match(r'^string@(.*)$', symbol_string)
             return symbol[1]
         else:
             d_print("INTE getSymbolValue - error not a symbol")
