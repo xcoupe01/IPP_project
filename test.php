@@ -110,7 +110,7 @@ if($help){
         decho(" PARAM \t\e[31mFAIL\e[0m Other argument with help \n");
         exit(ERR_PARAMS);
       } else {
-        print("help information ...\n");
+        print("help information ...\n"); // -------------------------------------------------------- TODO
         exit(ERR_OK);
       }
 }
@@ -173,15 +173,21 @@ foreach($testlist as $file) {
 }
 foreach($testlist as $test){
  if($parseOnly){
+   $ParOut = [];
   exec("cat $test.src | php -f $parser", $ParOut, $ParRet);
   if(file_get_contents($test . '.rc') == $ParRet){ 
     if($ParRet > 0){
       $results[$test] = 'OK';
     } else {
-      // compare outputs with .out by jexamxml
-      // a7soft integration ------------------------------------------------------ TODO
-      $results[$test] = 'OK';
-      $results[$test] = 'fail#' . 'Different script outputs: diff [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
+      $DifOut = [];
+      file_put_contents($test . '.tmp', $ParOut);
+      exec("java -jar jexamxml/jexamxml.jar $test.out $test.tmp", $DifOut, $DifRet);
+      if ($DifRet == 0){
+        $results[$test] = 'OK';
+      } else {
+        $results[$test] = 'fail#' . 'Different script outputs: jexamxml [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
+      }
+      unlink($test . '.tmp');
     }
   } else {
     $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $ParRet . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
@@ -207,26 +213,23 @@ foreach($testlist as $test){
   unlink($test . '.tmp');
  } else {
   decho("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in\n");
+  $Out = [];
   exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in > $test.tmp", $Out, $Ret); // not working --------------- TODO
   if (file_get_contents($test . '.rc') == $Ret) {
-    if ($Ret > 0) {
+    exec("diff $test.tmp $test.out", $DifOut, $DifRet);
+    if ($DifRet == 0) {
       $results[$test] = 'OK';
     } else {
-      exec("diff $test.tmp $test.out", $DifOut, $DifRet);
-      if ($DifRet == 0) {
-        $results[$test] = 'OK';
-      } else {
-        $results[$test] = 'fail#' . 'Different script outputs: diff [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
-      }
+      $results[$test] = 'fail#' . 'Different script outputs: diff [script_output] [expected_output] <br>' . str_replace("\n", '<br>', htmlspecialchars(implode("\n", $DifOut)));
     }
   } else {
-    $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $Ret . '</b> expected:<b>' . file_get_contents($test . '.rc') . '</b>';
+    $results[$test] = 'fail#' . 'Different return code expected - returned:<b>' . $Ret . '</b> expected:<b>' . str_replace("\n", '', file_get_contents($test . '.rc')) . '</b>';
   }
   unlink($test . '.tmp');
  }
 }
 /* Generovani HTML 5 vystupu */
-$o = ta('h1', 'Test results - ' . date("Y m.d. H:i:s"));
+$o = ta('h1', 'Test results - ' . gmdate("d.m. H:i:s", time() + 3600 ));
 $n = 0;
 $fails = 0;
 $success = 0;
@@ -272,7 +275,7 @@ foreach ($results as $k => $v) {
   }
   $o .= ta('tr', tg('td', 'width=5% align="middle"', ++$n . $res . ta('td', $k)) . $dets);
 }
-$o = ta('table',/*ta('caption', 'string').*/ ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
+$o = ta('table',ta('caption', " successful : $success failed : $fails") . ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
 
 $o = ta(
   'html',

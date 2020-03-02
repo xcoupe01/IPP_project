@@ -50,7 +50,7 @@ $rules=[ //base functions
         'EQ'          =>['params'=>['var','symb','symb']],
         'AND'         =>['params'=>['var','symb','symb']],
         'OR'          =>['params'=>['var','symb','symb']],
-        'NOT'         =>['params'=>['var','symb','symb']],
+        'NOT'         =>['params'=>['var','symb']],
         'INT2FLOAT'   =>['params'=>['var','symb']],
         'FLOAT2INT'   =>['params'=>['var','symb']],
         'INT2CHAR'    =>['params'=>['var','symb']],
@@ -108,7 +108,7 @@ function varCheck($str){
     $prefix = substr($str, 0, 2);
     $name = substr($str, 3);
     if( ($prefix == "GF" || $prefix == "LF" || $prefix == "TF")
-          && preg_match("/^([\w_\-$&%*!?]+)$/", $name)){
+          && preg_match("/^([a-zA-Z_\-$&%*!?][\w_\-$&%*!?]*)$/", $name)){
       decho(" varCheck      \e[32mIS VAR\e[0m [$str]\n");
       return true;
     }
@@ -137,7 +137,7 @@ function symbCheck($str){
       //i am constant
       switch($prefix){
         case "int" :
-          if(preg_match("/^[-]?\d+$/", $name)){
+          if(preg_match("/^[-+]?\d+$/", $name)){
             decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
             return "int";
           }
@@ -246,7 +246,7 @@ do{
   $input[$i] = trim($input[$i]);
   if($input[$i] == ""){
     $i ++;
-  } elseif($input[$i] == ".IPPcode20"){
+  } elseif(strtoupper($input[$i]) == ".IPPCODE20"){
     $i ++;
     $go = false;
   } else {
@@ -261,7 +261,7 @@ if($debug) print_r($input);
 decho("------\033[0;34m MAIN CHECKER \033[0;37m-------\n");
 for($i; $i < count($input); $i++){
   decho("\e[1mCHECKING LINE [$i] \e[0m-> $input[$i]\n");
-  if(preg_match("/^(\w+)/", $input[$i], $m)){
+  if(preg_match("/^([\w\.]+)/", $input[$i], $m)){
     $opcode = strtoupper($m[0]);
     if (isset($rules[$opcode])){
       //opcode found in rules
@@ -292,14 +292,14 @@ for($i; $i < count($input); $i++){
             exit(ERR_OTHER);
           }
           $type = "var";
-          $name = $m[$j];
+          $name = htmlspecialchars($m[$j]);
         } elseif($value == "symb"){
           if(($type = symbCheck($m[$j])) === false){
-            decho(" opcode $opcode \e[31mFAIL\e[0m by symbCheck at [$m[$j]]");
+            decho(" opcode $opcode \e[31mFAIL\e[0m by symbCheck at [$m[$j]]\n");
             exit(ERR_OTHER);
           }
           if($type == "var"){
-            $name = $m[$j];
+            $name = htmlspecialchars($m[$j]);
           } else {
             $cut = strpos($m[$j], "@");
             if($type == "string"){
