@@ -261,7 +261,7 @@ if($debug) print_r($input);
 decho("------\033[0;34m MAIN CHECKER \033[0;37m-------\n");
 for($i; $i < count($input); $i++){
   decho("\e[1mCHECKING LINE [$i] \e[0m-> $input[$i]\n");
-  if(preg_match("/^([\w\.]+)/", $input[$i], $m)){
+  if(preg_match("/^([\S]+)/", $input[$i], $m)){
     $opcode = strtoupper($m[0]);
     if (isset($rules[$opcode])){
       //opcode found in rules

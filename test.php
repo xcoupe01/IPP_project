@@ -275,7 +275,8 @@ foreach ($results as $k => $v) {
   }
   $o .= ta('tr', tg('td', 'width=5% align="middle"', ++$n . $res . ta('td', $k)) . $dets);
 }
-$o = ta('table',ta('caption', " successful : $success failed : $fails") . ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
+$percentage = ($success / ($success + $fails)) * 100;
+$o = ta('table',ta('caption', "total tests done : $n<br>percentage : $percentage %<br>successful : $success<br>failed : $fails") . ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
 
 $o = ta(
   'html',

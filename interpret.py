@@ -147,7 +147,7 @@ class Frame:
             try:
                 self.types[self.vars.index(var_name)] = var_type
                 self.values[self.vars.index(var_name)] = var_value
-            except IndexError:
+            except ValueError:
                 d_print("FRAME setVar - error variable " + var_name + " not defined")
                 exit(ERR_UNDEF_VAR)
         else:
@@ -163,7 +163,7 @@ class Frame:
         if self.defined:
             try:
                 return self.types[self.vars.index(var_name)]
-            except IndexError:
+            except ValueError:
                 d_print("FRAME getVarType - error variable " + var_name + " not defined")
                 exit(ERR_UNDEF_VAR)
         else:
@@ -179,7 +179,7 @@ class Frame:
         if self.defined:
             try:
                 return self.values[self.vars.index(var_name)]
-            except IndexError:
+            except ValueError:
                 d_print("FRAME setVar - error variable " + var_name + " not defined")
                 exit(ERR_UNDEF_VAR)
         else:
@@ -203,7 +203,7 @@ class Frame:
                 else:
                     d_print("FRAME setVar - error variable " + var_name + " wrong value type")
                     exit(ERR_BADTYPE_OP)
-            except IndexError:
+            except ValueError:
                 d_print("FRAME setVar - error variable " + var_name + " not defined")
                 exit(ERR_UNDEF_VAR)
         else:
@@ -272,9 +272,17 @@ class VariableStorage:
         if var[1] == "GF":
             self.GlobalFrame.createVar(var[2])
         elif var[1] == "LF":
-            self.LocalFrame[self.numLF].createVar(var[2])
+            try:
+                self.LocalFrame[self.numLF].createVar(var[2])
+            except IndexError:
+                d_print(" DATAS createVar - error undefined frame")
+                exit(ERR_NOTDEF_FR)
         elif var[1] == "TF":
-            self.TemporaryFrame.createVar(var[2])
+            try:
+                self.TemporaryFrame.createVar(var[2])
+            except IndexError:
+                d_print(" DATAS createVar - error undefined frame")
+                exit(ERR_NOTDEF_FR)
 
     # sets value and type to already created variable in variable storage
     # @err when variable string is bad or the variable is not defined
@@ -289,9 +297,13 @@ class VariableStorage:
         if var[1] == "GF":
             self.GlobalFrame.setVar(var[2], var_type, var_value)
         elif var[1] == "TF":
-            self.LocalFrame[self.numLF].setVar(var[2], var_type, var_value)
-        elif var[1] == "LF":
             self.TemporaryFrame.setVar(var[2], var_type, var_value)
+        elif var[1] == "LF":
+            try:
+                self.LocalFrame[self.numLF].setVar(var[2], var_type, var_value)
+            except IndexError:
+                d_print(" DATAS setVar - error undefined frame")
+                exit(ERR_NOTDEF_FR)
 
     # returns type of given variable in IPPcode20 notation
     # @err when variable string is bad or the variable is not defined
@@ -304,9 +316,12 @@ class VariableStorage:
         if var[1] == "GF":
             return self.GlobalFrame.getVarType(var[2])
         elif var[1] == "TF":
-            return self.LocalFrame[self.numLF].getVarType(var[2])
-        elif var[1] == "LF":
             return self.TemporaryFrame.getVarType(var[2])
+        elif var[1] == "LF":
+            try:
+                return self.LocalFrame[self.numLF].getVarType(var[2])
+            except IndexError:
+                d_print(" DATAS getVarType - error Local frame not defined")
 
     # returns value of given variable in IPPcode20 notation
     # @err when variable string is bad or the variable is not defined
@@ -319,9 +334,13 @@ class VariableStorage:
         if var[1] == "GF":
             return self.GlobalFrame.getVarVal(var[2])
         elif var[1] == "TF":
-            return self.LocalFrame[self.numLF].getVarVal(var[2])
-        elif var[1] == "LF":
             return self.TemporaryFrame.getVarVal(var[2])
+        elif var[1] == "LF":
+            try:
+                return self.LocalFrame[self.numLF].getVarVal(var[2])
+            except IndexError:
+                d_print(" DATAS getVarVal - error Local frame not defined")
+                exit(ERR_NOTDEF_FR)
 
     # returns value of given variable in IPPcode20 notation if it
     # matches expected type
@@ -805,10 +824,11 @@ class Interpret:
             elif line[0] == 'GETCHAR':  # GETCHAR <var> <symb1> <symb2>
                 symb1 = self.getSymbolValueByType(line[2], 'string')
                 symb2 = self.getSymbolValueByType(line[3], 'int')
-                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) < int(symb2)):
+                try:
+                    self.variables.setVar(line[1], 'string', symb1[int(symb2)])
+                except IndexError:
                     d_print("INTE execute - error GETCHAR bad integer argument")
                     exit(ERR_STRFAULT)
-                self.variables.setVar(line[1], 'string', symb1[int(symb2)])
             elif line[0] == 'SETCHAR':  # SETCHAR <var> <symb1> <symb2>
                 varvalue = self.variables.getVarValByType(line[1], 'string')
                 symb1 = self.getSymbolValueByType(line[2], 'int')
@@ -939,6 +959,7 @@ class Interpret:
                     else:
                         d_print("INTE checkLineRules - error bug in rules table")
                         exit(ERR_INTERNAL)
+        d_print("\tINTE\tcheckLineRules\tend")
 
     # returns type of symbol
     # @err when symbol is variable and its not defined
@@ -988,7 +1009,7 @@ class Interpret:
     # @param symbol_string is string in IPPcode20 notation of symbol (variable or constant)
     # @return symbol value if successful
     def getSymbolValueByType(self, symbol_string, symbol_type):
-        d_print("\tINTE\tgetSymbolValueByType\t" + repr(symbol_string) + " " + symbol_type)
+        d_print("\tINTE\tgetSymbolValueByType\t" + repr(symbol_string) + " " + str(symbol_type))
         if symbol_type == self.getSymbolType(symbol_string):
             return self.getSymbolValue(symbol_string)
         else:
@@ -1001,7 +1022,7 @@ class Interpret:
     # @err when symbols are not integers
     # @param  line_array is the line of code split into array by words
     def doArithmetic(self, line_array):
-        d_print("\tINTE\tdoArithmetic\t" + line_array)
+        d_print("\tINTE\tdoArithmetic\t" + str(line_array))
         arithmetic_type = line_array[0]
         if (arithmetic_type == 'ADDS') | (arithmetic_type == 'SUBS') | \
                 (arithmetic_type == 'MULS') | (arithmetic_type == 'IDIVS'):
@@ -1058,7 +1079,7 @@ class Interpret:
     # @err when writing to undefined variable
     # @param line_array is the line of code split into array by words
     def doCompare(self, line_array):
-        d_print("\tINTE\tdoCompare\t" + line_array)
+        d_print("\tINTE\tdoCompare\t" + str(line_array))
         comparision_type = line_array[0]
         if (comparision_type == 'EQS') | (comparision_type == 'GTS') | (comparision_type == 'LTS'):
             symb2type = self.stack.stackTopType()
