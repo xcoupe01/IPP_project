@@ -58,7 +58,7 @@ rules = [
     ['SUB', 'var', 'symb', 'symb'],
     ['MUL', 'var', 'symb', 'symb'],
     ['IDIV', 'var', 'symb', 'symb'],
-    ['LG', 'var', 'symb', 'symb'],
+    ['LT', 'var', 'symb', 'symb'],
     ['GT', 'var', 'symb', 'symb'],
     ['EQ', 'var', 'symb', 'symb'],
     ['AND', 'var', 'symb', 'symb'],
@@ -79,7 +79,7 @@ rules = [
     ['GETCHAR', 'var', 'symb', 'symb'],
     ['SETCHAR', 'var', 'symb', 'symb'],
     # type operations
-    ['TYPE', 'var', 'symb'],
+    ['TYPE', 'var', 'und_symb'],
     # jump operations
     ['LABEL', 'label'],
     ['JUMP', 'label'],
@@ -322,6 +322,7 @@ class VariableStorage:
                 return self.LocalFrame[self.numLF].getVarType(var[2])
             except IndexError:
                 d_print(" DATAS getVarType - error Local frame not defined")
+                exit(ERR_NOTDEF_FR)
 
     # returns value of given variable in IPPcode20 notation
     # @err when variable string is bad or the variable is not defined
@@ -407,6 +408,7 @@ class StackStorage:
         d_print("\tSTAKS\tstackPopValue")
         if self.stackTop >= 0:
             self.typeArray.pop()
+            self.stackTop -= 1
             return self.valueArray.pop()
         else:
             d_print("STAKS stackPopValue - error nothing in stack to pop")
@@ -729,7 +731,7 @@ class Interpret:
                 self.ProgCounter = self.labels.getLabelLine(line[1])
             elif line[0] == 'RETURN':  # RETURN
                 if len(self.CallStack) > 0:
-                    self.ProgCounter = self.CallStack.pop(-1)
+                    self.ProgCounter = self.CallStack.pop(-1) - 1
                 else:
                     d_print("INTE execute - error poping from empty call stack")
                     exit(ERR_NOVAL_VAR)
@@ -791,7 +793,7 @@ class Interpret:
                 else:
                     symb2 = self.stack.stackPopValueByType('int')
                     symb1 = self.stack.stackPopValueByType('string')
-                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) < int(symb2)):
+                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) >= int(symb2)):
                     d_print("INTE execute - error STRI2INT bad integer argument")
                     exit(ERR_STRFAULT)
                 if line[0] == 'STRI2INT':
@@ -821,26 +823,34 @@ class Interpret:
                     self.variables.setVar(line[1], 'string', symb1)
                 if (symb2 is not None) & (symb1 is not None):
                     self.variables.setVar(line[1], 'string', symb1 + symb2)
+            elif line[0] == 'STRLEN':  # STRLEN <var> <symb>
+                symb = self.getSymbolValueByType(line[2], 'string')
+                self.variables.setVar(line[1], 'int', str(len(symb)))
+                pass
             elif line[0] == 'GETCHAR':  # GETCHAR <var> <symb1> <symb2>
                 symb1 = self.getSymbolValueByType(line[2], 'string')
                 symb2 = self.getSymbolValueByType(line[3], 'int')
-                try:
-                    self.variables.setVar(line[1], 'string', symb1[int(symb2)])
-                except IndexError:
+                if int(symb2) < 0 or int(symb2) >= len(symb1):
                     d_print("INTE execute - error GETCHAR bad integer argument")
                     exit(ERR_STRFAULT)
+                else:
+                    self.variables.setVar(line[1], 'string', symb1[int(symb2)])
             elif line[0] == 'SETCHAR':  # SETCHAR <var> <symb1> <symb2>
                 varvalue = self.variables.getVarValByType(line[1], 'string')
                 symb1 = self.getSymbolValueByType(line[2], 'int')
                 symb2 = self.getSymbolValueByType(line[3], 'string')
-                if (re.match(r'^-\d+$', symb1) is not None) | (len(symb2) < int(varvalue)):
+                if (re.match(r'^-\d+$', symb1) is not None) | (len(varvalue) >= int(symb1)):
                     d_print("INTE execute - error SETCHAR bad integer argument")
                     exit(ERR_STRFAULT)
-                varvalue[int(symb1)] = symb2[0]
+                varvalue[int(symb1)] = symb2
                 self.variables.setVar(line[1], 'string', varvalue)
             elif line[0] == 'TYPE':  # TYPE <var> <symb>
-                if checkType(self.getSymbolType(line[2])):
-                    self.variables.setVar(line[1], 'string', self.getSymbolType(line[2]))
+                if checkType(self.getSymbolTypeUndefA(line[2])):
+                    symbtype = self.getSymbolTypeUndefA(line[2])
+                    if symbtype == 'undef':
+                        self.variables.setVar(line[1], 'string', '')
+                    else:
+                        self.variables.setVar(line[1], 'string', symbtype)
             elif line[0] == 'LABEL':  # LABEL <label>
                 # already set by scan labels function
                 self.labels.getLabelLine(line[1])
@@ -888,7 +898,7 @@ class Interpret:
             elif line[0] == 'EXIT':  # EXIT <symb>
                 symb = self.getSymbolValueByType(line[1], 'int')
                 if (int(symb) >= 0) & (int(symb) <= 49):
-                    exit(symb)
+                    exit(int(symb))
                 else:
                     d_print("INTE execute - error EXIT bad integer value")
             elif line[0] == 'DPRINT':  # DPRINT <symb>
@@ -935,11 +945,11 @@ class Interpret:
                 if len(line_array) != len(rule_line):
                     d_print("INTE checkLineRules - error bad opcode arguments")
                     exit(ERR_STRUCT_XML)
-                # line_array.pop(0)
-                # rule_line.pop(0)
                 for i in range(len(rule_line) - 1):
                     if rule_line[i + 1] == 'var':
                         self.variables.getVarType(line_array[i + 1])
+                    elif rule_line[i + 1] == 'und_symb':
+                        self.getSymbolTypeUndefA(line_array[i + 1])
                     elif rule_line[i + 1] == 'symb':
                         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', line_array[i + 1]) is not None:
                             self.variables.getVarType(line_array[i + 1])
@@ -969,7 +979,11 @@ class Interpret:
     def getSymbolType(self, symbol_string):
         d_print("\tINTE\tgetSymbolType\t" + repr(symbol_string))
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
-            return self.variables.getVarType(symbol_string)
+            vartype = self.variables.getVarType(symbol_string)
+            if vartype == 'undef':
+                d_print("INTE getSymbolType - error not set variable")
+                exit(ERR_NOVAL_VAR)
+            return vartype
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
@@ -977,6 +991,19 @@ class Interpret:
             return 'string'
         else:
             d_print("INTE getSymbolType - error not a symbol " + symbol_string)
+            exit(ERR_STRUCT_XML)
+
+    def getSymbolTypeUndefA(self, symbol_string):
+        d_print("\tINTE\tgetSymbolTypeUndefA\t" + repr(symbol_string))
+        if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
+            return self.variables.getVarType(symbol_string)
+        elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
+            symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
+            return symbol[1]
+        elif re.match(r'^string@.*$', symbol_string):
+            return 'string'
+        else:
+            d_print("INTE getSymbolTypeUndefA - error not a symbol " + symbol_string)
             exit(ERR_STRUCT_XML)
 
     # returns value of symbol
@@ -987,7 +1014,11 @@ class Interpret:
     def getSymbolValue(self, symbol_string):
         d_print("\tINTE\tgetSymbolValue\t" + repr(symbol_string))
         if re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', symbol_string) is not None:
-            return self.variables.getVarVal(symbol_string)
+            varval = self.variables.getVarVal(symbol_string)
+            if varval == 'undef':
+                d_print("INTE getSymbolType - error not set variable")
+                exit(ERR_NOVAL_VAR)
+            return varval
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[2]
@@ -1270,14 +1301,18 @@ class Interpret:
                     elif comparision_type == 'GTS':
                         self.stack.stackPush('false', 'bool')
         else:
-            d_print("INTE doCompare - error types not matching")
-            exit(ERR_BADTYPE_OP)
+            if symb1type == 'undef' or symb2type == 'undef':
+                d_print("INTE doCompare - error undefined symbol")
+                exit(ERR_NOVAL_VAR)
+            else:
+                d_print("INTE doCompare - error types not matching")
+                exit(ERR_BADTYPE_OP)
 
     # executes logic operations
     # can operate from line (with constants and variables) or with stack (variants with S)
     # @param line_array is the line of code split into array by words
     def doLogic(self, line_array):
-        d_print("\tINTE\tdoLogic\t" + line_array)
+        d_print("\tINTE\tdoLogic\t" + str(line_array))
         logic_op = line_array[0]
         if logic_op == 'NOT':
             symbol = self.getSymbolValueByType(line_array[2], 'bool')
@@ -1380,7 +1415,7 @@ def checkLabelName(label_str):
 def checkType(type_str):
     d_print("\tOUTF\tcheckType\t" + str(type_str))
     if (type_str == 'int') | (type_str == 'string') | \
-            (type_str == 'bool') | (type_str == 'nil') | (type_str == 'float'):
+            (type_str == 'bool') | (type_str == 'nil') | (type_str == 'float') | (type_str == 'undef'):
         return True
     else:
         d_print("OUTF checkType - error undefined type [" + str(type_str) + "]")
