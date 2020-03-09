@@ -110,7 +110,17 @@ if($help){
         decho(" PARAM \t\e[31mFAIL\e[0m Other argument with help \n");
         exit(ERR_PARAMS);
       } else {
-        print("help information ...\n"); // -------------------------------------------------------- TODO
+        print("Test script for checking both parse.php and/or interpret.py
+generates HTML file and outputs it in standard output.\n
+Options:
+- --help\t\tto print this informations
+- --directory=[dir]\tto set the testfiles directory
+- --recursive\t\tto tell the script to open all subfiles
+- --parse-script=[file]\tto set the source of parse script (default: parse.php)
+- --int-script=[file]\tto set the source of interpret script (default: interpret.py)
+- --parse-only\t\tto test parser only (jexamxml used)
+- --int-only\t\tto test only interpret
+- --jexamxml=[file]\tto set the location of jexamxml (default: /pub/courses/ipp/jexamxml/jexamxml.jar)\n"); 
         exit(ERR_OK);
       }
 }
@@ -181,7 +191,7 @@ foreach($testlist as $test){
     } else {
       $DifOut = [];
       file_put_contents($test . '.tmp', $ParOut);
-      exec("java -jar jexamxml/jexamxml.jar $test.out $test.tmp", $DifOut, $DifRet);
+      exec("java -jar $jexam $test.out $test.tmp", $DifOut, $DifRet);
       if ($DifRet == 0){
         $results[$test] = 'OK';
       } else {

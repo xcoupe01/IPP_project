@@ -192,7 +192,6 @@ function symbCheck($str){
 function labelCheck($str){
   if(preg_match("/^([\w_\-$&%*!?]+)$/", $str)){
     decho(" labelCheck    \e[32mGOOD\e[0m [$str]\n");
-    $name = $str; $type = "label";
     return true;
   }
   decho(" labelCheck    \e[31mFAIL\e[0m [$str]\n");
@@ -336,12 +335,12 @@ for($i; $i < count($input); $i++){
       if($opcode == "LABEL"){
         $addL = true;
         foreach ($state['Labels'] as $value){
-          if($value == $m[1]){
+          if($value == $m[2]){
             $addL = false;
           }
         }
         if($addL){
-          array_push($state['Labels'], $m[1]);
+          array_push($state['Labels'], $m[2]);
         }
       }
     } else {
@@ -393,7 +392,7 @@ if(count($argv) > 1){
         fprintf($handle, "%d\n", $state['numComments']);
         break;
       case "--labels":
-        fprintf($handle, "%d\n", count($state['numLabels']));
+        fprintf($handle, "%d\n", count($state['Labels']));
       break;
       case "--jumps":
         fprintf($handle, "%d\n", $state['numJumps']);
