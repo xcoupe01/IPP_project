@@ -1,0 +1,39 @@
+# .IPPcode20
+
+.IPPcode20 # .IPPcode20
+
+# STATI output:
+# --insts --> 27
+# --vars --> 4
+
+jump l3
+label l1
+jumpifeq l4 int@1 int@1
+label l2
+jump l1
+label l3
+jump l2
+
+label l4
+defvar GF@nic
+defvar GF@g1
+defvar GF@g2
+move GF@g1 int@420
+move GF@g2 string@BLAZE\032IT
+
+CREATEFRAME
+defvar TF@nic
+defvar TF@l1
+defvar TF@l2
+move TF@l1 int@420
+move TF@l2 string@BLAZE\032IT
+PUSHFRAME
+POPFRAME
+
+CREATEFRAME
+defvar TF@nic1
+defvar TF@nic2
+defvar TF@nic3
+defvar TF@l1
+move TF@l1 int@69
+

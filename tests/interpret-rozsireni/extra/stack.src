@@ -1,0 +1,172 @@
+.IPPCODE20
+
+DEFVAR GF@result
+
+CLEARS
+PUSHS int@7
+PUSHS int@13
+ADDS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@14
+PUSHS int@11
+SUBS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@2
+PUSHS int@8
+MULS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@24
+PUSHS int@8
+IDIVS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@7
+PUSHS int@13
+LTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@21
+PUSHS int@21
+LTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@2
+PUSHS int@0
+GTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@2
+PUSHS int@10
+GTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@13
+PUSHS int@13
+EQS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS string@13
+PUSHS string@133
+EQS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@true
+PUSHS bool@true
+ANDS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@true
+PUSHS bool@false
+ANDS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@true
+PUSHS bool@false
+ORS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@false
+PUSHS bool@false
+ORS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@false
+NOTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS bool@true
+NOTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@50
+INT2CHARS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS string@abc
+PUSHS int@1
+STRI2INTS
+POPS GF@result
+WRITE GF@result
+WRITE string@\010
+
+CLEARS
+PUSHS int@2
+PUSHS int@1
+JUMPIFEQS jump1
+WRITE string@jump1\010
+LABEL jump1
+
+CLEARS
+PUSHS int@78
+PUSHS int@78
+JUMPIFEQS jump2
+WRITE string@jump2\010
+LABEL jump2
+
+CLEARS
+PUSHS int@4
+PUSHS int@4
+JUMPIFNEQS jump3
+WRITE string@jump3\010
+LABEL jump3
+
+CLEARS
+PUSHS int@942
+PUSHS int@164
+JUMPIFNEQS jump4
+WRITE string@jump4\010
+LABEL jump4

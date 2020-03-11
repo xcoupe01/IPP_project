@@ -616,7 +616,7 @@ class FileProcessor:
                         else:
                             d_print("FILES xmlTranslate - err bad nil type")
                     elif arg_type == 'float':
-                        if re.match(r'^[+-]?0x[0-9abcde]+\.[0-9abcde]+p[+-]?[0-9]+$', arg_text):
+                        if re.match(r'^[0-9.abcdefABCDEF+\-px]*$', arg_text):
                             self.code[ins_order - 1].append(arg_type + '@' + str(float.fromhex(arg_text)))
                         else:
                             d_print("FILES xmlTranslate - error bad float")
@@ -627,6 +627,7 @@ class FileProcessor:
             except IndexError:
                 d_print("FILES xmlTranslate - error bad instruction attributes")
                 exit(ERR_STRUCT_XML)
+        d_print("\tFILES\txmlTranslate\tend")
 
     # returns specific line of code
     # @param num is number of the line of the code (starts by 0)
@@ -670,7 +671,8 @@ class FileProcessor:
 
     # returns one line from input
     def readInput(self):
-        return self.inFileHandle.readline()
+        inputdata = self.inFileHandle.readline()
+        return inputdata[:-1]
 
     # debug function that prints input in source handle
     # variable debug need to be True to make it work
@@ -793,11 +795,11 @@ class Interpret:
                 else:
                     symb2 = self.stack.stackPopValueByType('int')
                     symb1 = self.stack.stackPopValueByType('string')
-                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) >= int(symb2)):
+                if (re.match(r'^-\d+$', symb2) is not None) | (len(symb1) <= int(symb2)):
                     d_print("INTE execute - error STRI2INT bad integer argument")
                     exit(ERR_STRFAULT)
                 if line[0] == 'STRI2INT':
-                    self.variables.setVar(line[1], 'int', int(symb1[int(symb2)]))
+                    self.variables.setVar(line[1], 'int', str(ord(symb1[int(symb2)])))
                 else:
                     self.stack.stackPush(int(symb1[int(symb2)]), 'int')
             elif line[0] == 'READ':  # READ <var> <type>
@@ -806,7 +808,19 @@ class Interpret:
                         (line_type != 'string') & (line_type == 'float'):
                     d_print('INTE execute - error bad READ type')
                     exit(ERR_STRUCT_XML)
-                self.variables.setVar(line[1], line_type, self.files.readInput())
+                if line_type == 'bool':
+                    if self.files.readInput().lower() == 'true':
+                        self.variables.setVar(line[1], 'bool', 'true')
+                    else:
+                        self.variables.setVar(line[1], 'bool', 'false')
+                else:
+                    inputdata = self.files.readInput()
+                    if (line_type == 'int' and re.match(r'^[-]?\d+$', inputdata) is not None) or \
+                            (line_type == 'float' and re.match(r'^[-]?\d+\.\d+', inputdata) is not None) or \
+                            (line_type == 'string'):
+                        self.variables.setVar(line[1], line_type, inputdata)
+                    else:
+                        self.variables.setVar(line[1], 'nil', 'nil')
             elif line[0] == 'WRITE':  # WRITE <symb>
                 symbtype = self.getSymbolType(line[1])
                 symbval = self.getSymbolValue(line[1])
@@ -836,13 +850,21 @@ class Interpret:
                 else:
                     self.variables.setVar(line[1], 'string', symb1[int(symb2)])
             elif line[0] == 'SETCHAR':  # SETCHAR <var> <symb1> <symb2>
+                if self.variables.getVarType(line[1]) == 'undef':
+                    d_print("INTE execute - error undefined variable")
+                    exit(ERR_NOVAL_VAR)
                 varvalue = self.variables.getVarValByType(line[1], 'string')
                 symb1 = self.getSymbolValueByType(line[2], 'int')
                 symb2 = self.getSymbolValueByType(line[3], 'string')
-                if (re.match(r'^-\d+$', symb1) is not None) | (len(varvalue) >= int(symb1)):
+                if symb2 == '':
+                    d_print("INTE execute - error empty string")
+                    exit(ERR_STRFAULT)
+                if (re.match(r'^-\d+$', symb1) is not None) | (len(varvalue) <= int(symb1)):
                     d_print("INTE execute - error SETCHAR bad integer argument")
                     exit(ERR_STRFAULT)
-                varvalue[int(symb1)] = symb2
+                varvalue = list(varvalue)
+                varvalue[int(symb1)] = symb2[0]
+                varvalue = "".join(varvalue)
                 self.variables.setVar(line[1], 'string', varvalue)
             elif line[0] == 'TYPE':  # TYPE <var> <symb>
                 if checkType(self.getSymbolTypeUndefA(line[2])):
@@ -901,6 +923,7 @@ class Interpret:
                     exit(int(symb))
                 else:
                     d_print("INTE execute - error EXIT bad integer value")
+                    exit(ERR_BADVAL_OP)
             elif line[0] == 'DPRINT':  # DPRINT <symb>
                 symb = self.getSymbolValue(line[1])
                 print(symb, file=sys.stderr)
@@ -987,10 +1010,10 @@ class Interpret:
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
-        elif re.match(r'^string@.*$', symbol_string):
+        elif re.match(r'^string@.*', symbol_string):
             return 'string'
         else:
-            d_print("INTE getSymbolType - error not a symbol " + symbol_string)
+            d_print("INTE getSymbolType - error not a symbol " + repr(symbol_string))
             exit(ERR_STRUCT_XML)
 
     def getSymbolTypeUndefA(self, symbol_string):
@@ -1000,7 +1023,7 @@ class Interpret:
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[1]
-        elif re.match(r'^string@.*$', symbol_string):
+        elif re.match(r'^string@.*', symbol_string):
             return 'string'
         else:
             d_print("INTE getSymbolTypeUndefA - error not a symbol " + symbol_string)
@@ -1026,9 +1049,8 @@ class Interpret:
             return '\n'
         elif re.match(r'^string@$', symbol_string) is not None:
             return ''
-        elif re.match(r'^string@.*$', symbol_string) is not None:
-            symbol = re.match(r'^string@(.*)$', symbol_string)
-            return symbol[1]
+        elif re.match(r'^string@.*', symbol_string) is not None:
+            return symbol_string[7:]
         else:
             d_print("INTE getSymbolValue - error not a symbol")
             exit(ERR_STRUCT_XML)
@@ -1073,24 +1095,24 @@ class Interpret:
         elif arithmetic_type == 'SUBS':
             self.stack.stackPush(str(int(symbol1val) - int(symbol2val)), 'int')
         elif arithmetic_type == 'MUL':
-            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) * int(symbol2val)))
         elif arithmetic_type == 'MULS':
             self.stack.stackPush(str(int(symbol1val) * int(symbol2val)), 'int')
         elif (arithmetic_type == 'IDIV') & (type_symb == 'int'):
             if symbol2val != '0':
-                self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+                self.variables.setVar(line_array[1], 'int', str(int(int(symbol1val) / int(symbol2val))))
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
         elif (arithmetic_type == 'IDIVS') & (type_symb == 'int'):
             if symbol2val != '0':
-                self.stack.stackPush(str(int(symbol1val) / int(symbol2val)), 'int')
+                self.stack.stackPush(str(int(int(symbol1val) / int(symbol2val))), 'int')
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
         elif (arithmetic_type == 'DIV') & (type_symb == 'float'):
             if symbol2val != '0.0':
-                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) + float(symbol2val)))
+                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) / float(symbol2val)))
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
@@ -1319,7 +1341,7 @@ class Interpret:
             if symbol == 'true':
                 self.variables.setVar(line_array[1], 'bool', 'false')
             elif symbol == 'false':
-                self.variables.setVar(line_array[1], 'bool', 'false')
+                self.variables.setVar(line_array[1], 'bool', 'true')
             else:
                 d_print("INTE doLogic - error unknown value")
                 exit(ERR_INTERNAL)
@@ -1438,25 +1460,28 @@ def checkValueByType(type_str, value_str):
             d_print("OUTF checkValueByType - error bad integer")
             exit(ERR_STRUCT_XML)
     elif type_str == 'float':
-        if re.match(r'^[-]?\d+\.\d+', value_str):
+        if re.match(r'^[0-9.abcdefABCDEF+\-px]*$', value_str):
             return True
         else:
             d_print("OUTF checkValueByType - error bad float")
             exit(ERR_STRUCT_XML)
     elif type_str == 'string':
         for ic in range(len(value_str)):
-            if value_str[ic] == '\\':
-                try:
-                    if ((value_str[ic + 1] >= '0') & (value_str[ic + 1] <= '9')) & \
-                            ((value_str[ic + 2] >= '0') & (value_str[ic + 2] <= '9')) & \
-                            ((value_str[ic + 3] >= '0') & (value_str[ic + 3] <= '9')):
-                        ic += 3
-                    else:
-                        d_print("OUTF checkValueByType - error bad string")
+            try:
+                if value_str[ic] == '\\' and ('0' <= value_str[ic + 1] <= '9'):
+                    try:
+                        if ((value_str[ic + 1] >= '0') & (value_str[ic + 1] <= '9')) & \
+                                ((value_str[ic + 2] >= '0') & (value_str[ic + 2] <= '9')) & \
+                                ((value_str[ic + 3] >= '0') & (value_str[ic + 3] <= '9')):
+                            ic += 3
+                        else:
+                            d_print("OUTF checkValueByType - error bad escape number in string")
+                            exit(ERR_STRUCT_XML)
+                    except IndexError:
+                        d_print("OUTF checkValueByType - error bad escape in string")
                         exit(ERR_STRUCT_XML)
-                except IndexError:
-                    d_print("OUTF checkValueByType - error bad string")
-                    exit(ERR_STRUCT_XML)
+            except IndexError:
+                pass
         return True
     elif type_str == 'bool':
         if (value_str == 'true') | (value_str == 'false'):

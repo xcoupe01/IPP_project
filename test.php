@@ -210,6 +210,7 @@ foreach($testlist as $test){
     if($IntRet > 0){
       $results[$test] = 'OK';
     } else {
+      $DifOut = [];
       exec("diff $test.tmp $test.out", $DifOut, $DifRet);
       if($DifRet == 0){
         $results[$test] = 'OK';
@@ -226,6 +227,7 @@ foreach($testlist as $test){
   $Out = [];
   exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in > $test.tmp", $Out, $Ret); // not working --------------- TODO
   if (file_get_contents($test . '.rc') == $Ret) {
+    $DifOut = [];
     exec("diff $test.tmp $test.out", $DifOut, $DifRet);
     if ($DifRet == 0) {
       $results[$test] = 'OK';

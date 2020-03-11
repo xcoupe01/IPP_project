@@ -133,7 +133,7 @@ function symbCheck($str){
         return false;
       }
       return "var";
-    } elseif($prefix == "int" || $prefix == "bool" || $prefix == "string" || $prefix == "nil"){
+    } elseif($prefix == "int" || $prefix == "bool" || $prefix == "string" || $prefix == "nil" || $prefix == "float"){
       //i am constant
       switch($prefix){
         case "int" :
@@ -173,9 +173,9 @@ function symbCheck($str){
           }
           break;
         case "float":
-          if(preg_match("/^[+-]?0x[0-9abcde]+\.[0-9abcde]+p[+-]?[0-9]+$/", $name)){
+          if(preg_match("/^[0-9\.abcdefABCDEF\+\-px]*$/", $name)){
             decho(" symbCheck     \e[32mIS SYMBOL\e[0m [$str]\n");
-            return "int";
+            return "float";
           }
       }
     }
@@ -316,8 +316,8 @@ for($i; $i < count($input); $i++){
           $name = $m[$j];
         } elseif($value == "type"){
           $name = $m[$j]; $type = "type";
-          if($m[$j] != "int" && $m[$j] != "bool" && $m[$j] != "string"){
-            decho(" opcode $opcode \e[31mFAIL\e[0m by typeCheck at [$m[$j]]");
+          if($m[$j] != "int" && $m[$j] != "bool" && $m[$j] != "string" && $m[$j] != "float"){
+            decho(" opcode $opcode \e[31mFAIL\e[0m by typeCheck at [$m[$j]]\n");
             exit(ERR_OTHER);
           }
         }

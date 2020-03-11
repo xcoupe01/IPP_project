@@ -1,0 +1,141 @@
+
+###########################################################
+# ⣿⣿⣿⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠛⠻⣿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⣄⡀⠀⢻⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣇⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣿⠃⢰⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⡆⠀⠀⠀⠀⠀⠀⢶⣶⣶⣾⣿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⢠⡀⠐⠀⠀⠀⠻⢿⣿⣿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⢸⣷⡄⠀⠣⣄⡀⠀⠉⠛⢿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⠀⣿⣿⣦⠀⠹⣿⣷⣶⣦⣼⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣼⣿⣿⣿⣷⣄⣸⣿⣿⣿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+# ⣿⣿⡿⢛⡙⢻⠛⣉⢻⣉⢈⣹⣿⣿⠟⣉⢻⡏⢛⠙⣉⢻⣿⣿⣿
+# ⣿⣿⣇⠻⠃⣾⠸⠟⣸⣿⠈⣿⣿⣿⡀⠴⠞⡇⣾⡄⣿⠘⣿⣿⣿
+# ⣿⣿⣟⠛⣃⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+###########################################################
+# :ok_hand: ascii art meme v ippcode20 OMEGALUL :ok_hand:
+# comment
+   # comment
+
+   .ippcode20 # comment
+
+defvar GF@x
+DeFvAr GF@y
+DEFVAR GF@z
+
+move GF@x float@f4
+move GF@x float@+1e.
+move GF@x float@-.c
+move GF@x float@4acp-0
+move GF@x float@14a.baac1234567890ABCDEFp+12
+move GF@x float@+0x42.AbCdeFp-1
+
+move GF@x float@+3.5ap2
+move GF@y float@-0x8C.8p-3
+add GF@z GF@x GF@y
+write GF@z
+write string@\010
+
+move GF@x float@+3.5ap2
+move GF@y float@-0x8C.8p-3
+sub GF@z GF@x GF@y
+write GF@z
+write string@\010
+
+move GF@x float@+3.5ap2
+move GF@y float@-0x8C.8p-3
+mul GF@z GF@x GF@y
+write GF@z
+write string@\010
+
+move GF@x float@+3.5ap2
+move GF@y float@-0x8C.8p-3
+div GF@z GF@x GF@y
+write GF@z
+write string@\010
+
+clears
+pushs float@F3e.p-1
+pushs float@-0x.8p+3
+adds
+pops GF@z
+write GF@z
+write string@\010
+
+clears
+pushs float@F3e.p-1
+pushs float@-0x.8p+3
+subs
+pops GF@z
+write GF@z
+write string@\010
+
+clears
+pushs float@F3e.p-1
+pushs float@-0x.8p+3
+muls
+pops GF@z
+write GF@z
+write string@\010
+
+clears
+pushs float@F3e.p-1
+pushs float@-0x.8p+3
+divs
+pops GF@z
+write GF@z
+write string@\010
+
+INT2Float GF@z int@146
+write GF@z
+write string@\010
+
+clears
+pushs int@146
+INT2Floats
+pops GF@z
+write GF@z
+write string@\010
+
+Float2int GF@z float@-0xab1.p2
+write GF@z
+write string@\010
+
+clears
+pushs float@-0xab1.p2
+floAT2intS
+pops GF@z
+write GF@z
+write string@\010
+
+read GF@z float
+write GF@z
+write string@\010
+
+read GF@z float
+write GF@z
+write string@\010
+
+###########################################################
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⠋⣉⣉⣉⣉⣉⣉⠙⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⡿⠟⢁⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⡈⠻⢿⣿⣿⣿⣿⣿
+# ⣿⣿⣿⡿⠋⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄⠙⢿⣿⣿⣿
+# ⣿⣿⡟⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⢻⣿⣿
+# ⣿⡟⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⢻⣿
+# ⣿⢀⣿⣿⣿⠟⠁⣠⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣄⠈⠻⣿⣿⣿⡀⣿
+# ⡇⢸⣿⣿⠋⣠⡾⠿⠛⠛⠛⠿⣿⣿⣿⣿⣿⣿⠿⠛⠛⠛⠻⢷⣄⠙⣿⣿⡇⢸
+# ⡇⢸⣿⣿⣾⣿⢀⣠⣤⣤⣤⣤⣀⣿⣿⣿⣿⣀⣤⣤⣤⣤⣄⡀⣿⣷⣾⣿⡇⢸
+# ⡇⠸⠟⣫⣥⣶⣧⠹⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠏⣼⣶⣬⣍⠻⠇⢸
+# ⡧⣰⣿⣿⣿⣿⣿⢰⣦⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣴⡆⣿⣿⣿⣿⣿⣆⢼
+# ⡇⣿⣿⣿⣿⣿⡟⠈⠙⠛⠻⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠋⠁⢻⣿⣿⣿⣿⣿⢸
+# ⣿⣌⡻⠿⠿⢋⣴⣦⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⢀⣴⣦⡙⠿⠿⢟⣡⣾
+# ⣿⣿⣿⣷⣄⠙⢿⣿⣿⣶⣤⣀⡀⡀⡀⡀⡀⡀⣀⣤⣶⣿⣿⡿⠋⣠⣾⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣷⣦⣉⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠛⣉⣴⣾⣿⣿⣿⣿⣿
+# ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣌⣉⣉⣉⣉⣉⣉⣡⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿
+
+# a nakonec si ještě dáme jednu rakovinku (床に転がって笑う)
+# +ěščřžýáíéů§ú¨.-´;/*-+\n\r\n\\
+# A BACHA NA 冠狀病毒！
+###########################################################
