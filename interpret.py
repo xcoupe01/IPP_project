@@ -51,6 +51,8 @@ rules = [
     ['NOTS'],
     ['INT2CHARS'],
     ['STRI2INTS'],
+    ['INT2FLOATS'],
+    ['FLOAT2INTS'],
     ['JUMPIFEQS', 'label'],
     ['JUMPIFNEQS', 'label'],
     # arithmetical operations, logical operation, conversions
@@ -290,7 +292,7 @@ class VariableStorage:
     # @param var_type is the type the variable will be set to
     # @param var_type is the value the variable will be set to
     def setVar(self, var_str, var_type, var_value):
-        d_print("\tDATAS\tsetVar\t" + var_str + " " + var_type + " " + repr(var_value))
+        d_print("\tDATAS\tsetVar\t" + str(var_str) + " " + str(var_type) + " " + repr(var_value))
         checkNameVar(var_str)
         checkValueByType(var_type, var_value)
         var = re.match(r'^(\wF)@([\w_\-$&%*!?]+)$', var_str)
@@ -395,7 +397,7 @@ class StackStorage:
     # @param item_value is value of the item to be pushed
     # @param item_type is type of the item to be pushed
     def stackPush(self, item_value, item_type):
-        d_print("\tSTAKS\tstackPush\t" + item_value + " " + repr(item_type))
+        d_print("\tSTAKS\tstackPush\t" + str(item_value) + " " + repr(item_type))
         checkValueByType(item_type, item_value)
         self.valueArray.append(item_value)
         self.typeArray.append(item_type)
@@ -434,6 +436,7 @@ class StackStorage:
         if self.stackTop >= 0:
             if self.typeArray[self.stackTop] == item_type:
                 self.typeArray.pop()
+                self.stackTop -= 1
                 return self.valueArray.pop()
             else:
                 d_print("STAKS stackPopValueByType - error stack top wrong value")
@@ -588,7 +591,7 @@ class FileProcessor:
                         if checkLabelName(arg_text):
                             self.code[ins_order - 1].append(arg_text)
                     elif arg_type == 'type':
-                        if (arg_text == 'int') | (arg_text == 'string') | (arg_text == 'bool'):
+                        if (arg_text == 'int') | (arg_text == 'string') | (arg_text == 'bool') | (arg_text == 'float'):
                             self.code[ins_order - 1].append(arg_text)
                     elif arg_type == 'int':
                         if checkValueByType('int', arg_text):
@@ -671,8 +674,7 @@ class FileProcessor:
 
     # returns one line from input
     def readInput(self):
-        inputdata = self.inFileHandle.readline()
-        return inputdata[:-1]
+        return self.inFileHandle.readline()
 
     # debug function that prints input in source handle
     # variable debug need to be True to make it work
@@ -742,7 +744,8 @@ class Interpret:
             elif line[0] == 'POPS':  # POPS <var>
                 self.variables.setVar(line[1], self.stack.stackTopType(), self.stack.stackPopValue())
             elif (line[0] == 'ADD') | (line[0] == 'SUB') | (line[0] == 'MUL') | (line[0] == 'IDIV') | \
-                    (line[0] == 'ADDS') | (line[0] == 'SUBS') | (line[0] == 'MULS') | (line[0] == 'IDIVS'):
+                    (line[0] == 'DIV') | (line[0] == 'DIVS') | (line[0] == 'ADDS') | (line[0] == 'SUBS') | \
+                    (line[0] == 'MULS') | (line[0] == 'IDIVS'):
                 # ADD <var> <symb1> <symb2>       ADDS
                 # SUB <var> <symb1> <symb2>       SUBS
                 # MUL <var> <symb1> <symb2>       MULS
@@ -776,17 +779,17 @@ class Interpret:
             elif (line[0] == 'INT2FLOAT') | (line[0] == 'INT2FLOATS'):
                 if line[0] == 'INT2FLOAT':
                     symb = self.getSymbolValueByType(line[2], 'int')
-                    self.variables.setVar(line[1], float(int(symb)), 'float')
+                    self.variables.setVar(line[1], 'float', str(float(int(symb))))
                 else:
                     symb = self.stack.stackPopValueByType('int')
-                    self.stack.stackPush(float(int(symb)), 'float')
+                    self.stack.stackPush(str(float(int(symb))), 'float')
             elif (line[0] == 'FLOAT2INT') | (line[0] == 'FLOAT2INTS'):
                 if line[0] == 'FLOAT2INT':
                     symb = self.getSymbolValueByType(line[2], 'float')
-                    self.variables.setVar(line[1], int(float(symb)), 'int')
+                    self.variables.setVar(line[1], 'int', str(int(float(symb))))
                 else:
-                    symb = self.stack.stackPopValueByType('int')
-                    self.stack.stackPush(int(float(symb)), 'float')
+                    symb = self.stack.stackPopValueByType('float')
+                    self.stack.stackPush(str(int(float(symb))), 'int')
             elif (line[0] == 'STRI2INT') | (line[0] == 'STRI2INTS'):
                 # STRI2INT <var> <symb1> <symb2>   STRI2INTS
                 if line[0] == 'STRI2INT':
@@ -801,31 +804,38 @@ class Interpret:
                 if line[0] == 'STRI2INT':
                     self.variables.setVar(line[1], 'int', str(ord(symb1[int(symb2)])))
                 else:
-                    self.stack.stackPush(int(symb1[int(symb2)]), 'int')
+                    self.stack.stackPush(str(ord(symb1[int(symb2)])), 'int')
             elif line[0] == 'READ':  # READ <var> <type>
                 line_type = line[2]
+                inputdata = self.files.readInput()
                 if (line_type != 'int') & (line_type != 'bool') & \
-                        (line_type != 'string') & (line_type == 'float'):
+                        (line_type != 'string') & (line_type != 'float'):
                     d_print('INTE execute - error bad READ type')
                     exit(ERR_STRUCT_XML)
-                if line_type == 'bool':
-                    if self.files.readInput().lower() == 'true':
+                elif inputdata == '':
+                    self.variables.setVar(line[1], 'nil', 'nil')
+                elif line_type == 'bool':
+                    inputdata = inputdata[:-1]
+                    if inputdata.lower() == 'true':
                         self.variables.setVar(line[1], 'bool', 'true')
                     else:
                         self.variables.setVar(line[1], 'bool', 'false')
                 else:
-                    inputdata = self.files.readInput()
+                    inputdata = inputdata[:-1]
                     if (line_type == 'int' and re.match(r'^[-]?\d+$', inputdata) is not None) or \
-                            (line_type == 'float' and re.match(r'^[-]?\d+\.\d+', inputdata) is not None) or \
                             (line_type == 'string'):
                         self.variables.setVar(line[1], line_type, inputdata)
+                    elif line_type == 'float' and re.match(r'^[0-9.abcdefABCDEF+\-px]*$', inputdata) is not None:
+                        self.variables.setVar(line[1], 'float', str(float.fromhex(inputdata)))
                     else:
                         self.variables.setVar(line[1], 'nil', 'nil')
             elif line[0] == 'WRITE':  # WRITE <symb>
                 symbtype = self.getSymbolType(line[1])
-                symbval = self.getSymbolValue(line[1])
+                symbval = self.getSymbolValueByType(line[1], symbtype)
                 if symbtype == 'nil':
                     print('', end='')
+                elif symbtype == 'float':
+                    print(str(float.hex(float(symbval))), end='')
                 else:
                     print(symbval, end='')
             elif line[0] == 'CONCAT':  # CONCAT <var> <symb1> <symb2>
@@ -984,7 +994,8 @@ class Interpret:
                         self.labels.getLabelLine(line_array[i + 1])
                     elif rule_line[i + 1] == 'type':
                         if (line_array[i + 1] != 'int') & (line_array[i + 1] != 'bool') & \
-                                (line_array[i + 1] != 'string') & (line_array[i + 1] != 'nil'):
+                                (line_array[i + 1] != 'string') & (line_array[i + 1] != 'nil') & \
+                                (line_array[i + 1] != 'float'):
                             d_print("INTE checkLineRules - error bad type")
                             exit(ERR_STRUCT_XML)
                     elif rule_line[i + 1] == 'undefvar':
@@ -1042,15 +1053,11 @@ class Interpret:
                 d_print("INTE getSymbolType - error not set variable")
                 exit(ERR_NOVAL_VAR)
             return varval
+        elif re.match(r'^string@.*', symbol_string) is not None:
+            return symbol_string[7:]
         elif re.match(r'^(\w+)@([\S]+)$', symbol_string) is not None:
             symbol = re.match(r'^(\w+)@([\S]+)$', symbol_string)
             return symbol[2]
-        elif re.match(r'^string@\n$', symbol_string) is not None:
-            return '\n'
-        elif re.match(r'^string@$', symbol_string) is not None:
-            return ''
-        elif re.match(r'^string@.*', symbol_string) is not None:
-            return symbol_string[7:]
         else:
             d_print("INTE getSymbolValue - error not a symbol")
             exit(ERR_STRUCT_XML)
@@ -1078,7 +1085,7 @@ class Interpret:
         d_print("\tINTE\tdoArithmetic\t" + str(line_array))
         arithmetic_type = line_array[0]
         if (arithmetic_type == 'ADDS') | (arithmetic_type == 'SUBS') | \
-                (arithmetic_type == 'MULS') | (arithmetic_type == 'IDIVS'):
+                (arithmetic_type == 'MULS') | (arithmetic_type == 'IDIVS') | (arithmetic_type == 'DIVS'):
             type_symb = self.stack.stackTopType()
             symbol1val = self.stack.stackPopValueByType(type_symb)
             symbol2val = self.stack.stackPopValueByType(type_symb)
@@ -1087,17 +1094,35 @@ class Interpret:
             symbol1val = self.getSymbolValueByType(line_array[2], type_symb)
             symbol2val = self.getSymbolValueByType(line_array[3], type_symb)
         if arithmetic_type == 'ADD':
-            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+            if type_symb == 'int':
+                self.variables.setVar(line_array[1], 'int', str(int(symbol1val) + int(symbol2val)))
+            else:
+                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) + float(symbol2val)))
         elif arithmetic_type == 'ADDS':
-            self.stack.stackPush(str(int(symbol1val) + int(symbol2val)), 'int')
+            if type_symb == 'int':
+                self.stack.stackPush(str(int(symbol1val) + int(symbol2val)), 'int')
+            else:
+                self.stack.stackPush(str(float(symbol1val) + float(symbol2val)), 'float')
         elif arithmetic_type == 'SUB':
-            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) - int(symbol2val)))
+            if type_symb == 'int':
+                self.variables.setVar(line_array[1], 'int', str(int(symbol1val) - int(symbol2val)))
+            else:
+                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) - float(symbol2val)))
         elif arithmetic_type == 'SUBS':
-            self.stack.stackPush(str(int(symbol1val) - int(symbol2val)), 'int')
+            if type_symb == 'int':
+                self.stack.stackPush(str(int(symbol2val) - int(symbol1val)), 'int')
+            else:
+                self.stack.stackPush(str(float(symbol2val) - float(symbol1val)), 'float')
         elif arithmetic_type == 'MUL':
-            self.variables.setVar(line_array[1], 'int', str(int(symbol1val) * int(symbol2val)))
+            if type_symb == 'int':
+                self.variables.setVar(line_array[1], 'int', str(int(symbol1val) * int(symbol2val)))
+            else:
+                self.variables.setVar(line_array[1], 'float', str(float(symbol1val) * float(symbol2val)))
         elif arithmetic_type == 'MULS':
-            self.stack.stackPush(str(int(symbol1val) * int(symbol2val)), 'int')
+            if type_symb == 'int':
+                self.stack.stackPush(str(int(symbol1val) * int(symbol2val)), 'int')
+            else:
+                self.stack.stackPush(str(float(symbol1val) * float(symbol2val)), 'float')
         elif (arithmetic_type == 'IDIV') & (type_symb == 'int'):
             if symbol2val != '0':
                 self.variables.setVar(line_array[1], 'int', str(int(int(symbol1val) / int(symbol2val))))
@@ -1106,7 +1131,7 @@ class Interpret:
                 exit(ERR_BADVAL_OP)
         elif (arithmetic_type == 'IDIVS') & (type_symb == 'int'):
             if symbol2val != '0':
-                self.stack.stackPush(str(int(int(symbol1val) / int(symbol2val))), 'int')
+                self.stack.stackPush(str(int(int(symbol2val) / int(symbol1val))), 'int')
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)
@@ -1118,7 +1143,7 @@ class Interpret:
                 exit(ERR_BADVAL_OP)
         elif (arithmetic_type == 'DIVS') & (type_symb == 'float'):
             if symbol2val != '0.0':
-                self.stack.stackPush(str(float(symbol1val) / float(symbol2val)), 'float')
+                self.stack.stackPush(str(float(symbol2val) / float(symbol1val)), 'float')
             else:
                 d_print("INTE doArithmetic - error zero division")
                 exit(ERR_BADVAL_OP)

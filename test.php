@@ -225,7 +225,7 @@ foreach($testlist as $test){
  } else {
   decho("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in\n");
   $Out = [];
-  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in > $test.tmp", $Out, $Ret); // not working --------------- TODO
+  exec("cat $test.src | php -f $parser | python3.8 $interpret --input=$test.in > $test.tmp", $Out, $Ret);
   if (file_get_contents($test . '.rc') == $Ret) {
     $DifOut = [];
     exec("diff $test.tmp $test.out", $DifOut, $DifRet);
