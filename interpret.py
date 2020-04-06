@@ -508,7 +508,7 @@ class FileProcessor:
         # deal wit args
         parser = argparse.ArgumentParser(add_help=False)
         # basic arguments
-        parser.add_argument('-h', '--h', dest='help', action='count')
+        parser.add_argument('-h', '--help', dest='help', action='count')
         parser.add_argument('--source', default=None)
         parser.add_argument('--input', default=None)
         # additional arguments

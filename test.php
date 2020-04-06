@@ -2,7 +2,7 @@
 
 // --- variables ---
 
-$debug = true;
+$debug = false;
 $testlist = [];
 $help = false;
 $directory = Null;
