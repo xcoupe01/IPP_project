@@ -2,7 +2,7 @@
 
 // --- variables ---
 
-$debug = false;
+$debug = true;
 $testlist = [];
 $help = false;
 $directory = Null;
@@ -13,6 +13,8 @@ $parseOnly = false;
 $intOnly = false;
 $jexam = Null;
 $results = [];
+$testlistFile = Null;
+$match = Null;
 
 define("ERR_OK", 0);
 define("ERR_PARAMS", 10);
@@ -99,6 +101,15 @@ foreach($argv as $i => $arg){
       decho(" PARAM \t\e[31mFAIL\e[0m is not a jexamxml\n");
       exit(ERR_OPEN);
     }
+  } elseif (preg_match("/^--testlist=(.+)$/", $arg, $m)) {
+    if(is_file($m[1])){
+      $testlistFile = $m[1];
+    } else {
+      decho(" PARAM \t\e[31mFAIL\e[0m is not a testlist file\n");
+      exit(ERR_OPEN);
+    }
+  } elseif(preg_match("/^--match=(.+)$/", $arg, $m)){
+    $match = $m[1];
   } else {
     decho(" PARAM \t\e[31mFAIL\e[0m Unknown argument [$arg] \n");
     exit(ERR_PARAMS);
@@ -120,11 +131,17 @@ Options:
 - --int-script=[file]\tto set the source of interpret script (default: interpret.py)
 - --parse-only\t\tto test parser only (jexamxml used)
 - --int-only\t\tto test only interpret
-- --jexamxml=[file]\tto set the location of jexamxml (default: /pub/courses/ipp/jexamxml/jexamxml.jar)\n"); 
+- --jexamxml=[file]\tto set the location of jexamxml (default: /pub/courses/ipp/jexamxml/jexamxml.jar)
+- --testlist=[file]\tto set file that contains list of location of test files or folders
+- --match=[regex]\tto set regular expression that must the test file names pass to be tested (write without php slashes)\n"); 
         exit(ERR_OK);
       }
 }
-if($directory == Null){
+if($directory != Null && $testlistFile != Null){
+  decho(" PARAM \t\e[31mFAIL\e[0m Bad arguments\n");
+  exit(ERR_PARAMS);
+}
+if($directory == Null && $testlistFile == Null){
   decho(" PARAM \e[33mWARN\e[0m Scanning current folder\n");
   $directory = '.';
 }
@@ -152,22 +169,76 @@ if($jexam == Null){
   decho(" PARAM \e[33mWARN\e[0m Setting jexamxml to default\n");
   $jexam = "/pub/courses/ipp/jexamxml/jexamxml.jar";
 }
+
 // loading files
-if ($recursive) {
-  $it = new RecursiveDirectoryIterator($directory);
-  foreach (new RecursiveIteratorIterator($it) as $file) {
-    if ($file->getExtension() == 'src') {
-      array_push($testlist, str_replace('.src', '', $file->getPathname()));
+if($testlistFile != Null){
+  $testlistFileHandle = fopen($testlistFile, "r");
+  if($testlistFileHandle != Null){
+    while(($line = fgets($testlistFileHandle)) !== false){
+      $line = trim($line);
+      if(preg_match("/^.+\.src$/", $line)){
+        if(is_file($line)){
+          array_push($testlist, str_replace('.src', '', $line));
+        } else {
+          decho(" PARAM \t\e[31mFAIL\e[0m is not an openable testlist file\n");
+          exit(ERR_OPEN);
+        }
+      } else {
+        // folder thats need to be explored. must consider recursion
+        if (is_dir($line)) {
+          if($recursive){
+            $it = new RecursiveDirectoryIterator($line);
+            foreach (new RecursiveIteratorIterator($it) as $file) {
+              if ($file->getExtension() == 'src') {
+                array_push($testlist, str_replace('.src', '', $file->getPathname()));
+              }
+            }
+          } else {
+            $tmpfiles = scandir($line, SCANDIR_SORT_ASCENDING);
+            for($i = 2; $i < count($tmpfiles); $i++){
+              if (preg_match('/^(.+).src/', $tmpfiles[$i], $m)) {
+                array_push($testlist, $line . '/' . $m[1]);
+              }
+            }
+          }
+        } else {
+          echo($line);
+        }
+      }
     }
+    fclose($testlistFileHandle);
+  } else {
+    decho(" PARAM \t\e[31mFAIL\e[0m is not an openable testlist file\n");
+    exit(ERR_OPEN);
   }
 } else {
-  $tmpfiles = scandir($directory, SCANDIR_SORT_ASCENDING);
-  for ($i = 2; $i < count($tmpfiles); $i++)
-    if (preg_match('/^(.+).src/', $tmpfiles[$i], $m)) {
-      array_push($testlist, $directory . '/' . $m[1]);
+  if ($recursive) {
+    $it = new RecursiveDirectoryIterator($directory);
+    foreach (new RecursiveIteratorIterator($it) as $file) {
+      if ($file->getExtension() == 'src') {
+        array_push($testlist, str_replace('.src', '', $file->getPathname()));
+      }
     }
+  } else {
+    $tmpfiles = scandir($directory, SCANDIR_SORT_ASCENDING);
+    for ($i = 2; $i < count($tmpfiles); $i++){
+      if (preg_match('/^(.+).src/', $tmpfiles[$i], $m)) {
+        array_push($testlist, $directory . '/' . $m[1]);
+      }
+    }
+  }
 }
-foreach($testlist as $file) {
+
+foreach($testlist as $index => $file) {
+  if($match != Null){
+    $php_errormsg = '';
+    @preg_match("/" . $match . "/", '');
+    if($php_errormsg) return(ERR_OPEN);
+    if(!preg_match("/" . $match . "/", basename($file))){
+      echo(basename($file) . "\n");
+      unset($testlist[$index]);
+    }
+  }
   if(!is_file($file . '.in')){
     decho(" FILES \e[33mWARN\e[0m generating infile for $file \n");
     file_put_contents($file . '.in', '');
@@ -181,6 +252,7 @@ foreach($testlist as $file) {
     file_put_contents($file . '.rc', '0');
   }
 }
+
 foreach($testlist as $test){
  if($parseOnly){
    $ParOut = [];
@@ -287,7 +359,12 @@ foreach ($results as $k => $v) {
   }
   $o .= ta('tr', tg('td', 'width=5% align="middle"', ++$n . $res . ta('td', $k)) . $dets);
 }
-$percentage = ($success / ($success + $fails)) * 100;
+if($success + $fails > 0){
+  $percentage = ($success / ($success + $fails)) * 100;
+} else {
+  $percentage = 0;
+}
+
 $o = ta('table',ta('caption', "total tests done : $n<br>percentage : $percentage %<br>successful : $success<br>failed : $fails") . ta('th', 'Number') . ta('th', 'Result') . ta('th', 'Test File') . ta('th', 'Details (click to view)') . $o);
 
 $o = ta(
